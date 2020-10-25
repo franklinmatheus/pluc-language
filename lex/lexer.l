@@ -7,68 +7,67 @@
  */
 
 %%
-\"(\\.|[^"\\])*\" { printf("STRING_LIT "); }
-\'([a-z]|[A-Z])\' { printf("CHAR_LIT "); }
-[tT][rR][uU][eE]|[fF][aA][lL][sS][eE] { printf("BOOL_LIT "); }
+\"(\\.|[^"\\])*\"                           { printf("STRING_LIT "); }
+\'([a-z]|[A-Z])\'                           { printf("CHAR_LIT "); }
+[tT][rR][uU][eE]|[fF][aA][lL][sS][eE]       { printf("BOOL_LIT "); }
 
-if { printf("IF "); }
-while { printf("WHILE "); }
-do { printf("DO "); }
-for { printf("FOR "); }
+if                                          { printf("IF "); }
+while                                       { printf("WHILE "); }
+do                                          { printf("DO "); }
+for                                         { printf("FOR "); }
 
-void { printf("VOID "); }
+void                                        { printf("VOID "); }
 
-return { printf("RETURN "); }
-break { printf("BREAK "); }
-exit { printf("EXIT "); }
+return                                      { printf("RETURN "); }
+break                                       { printf("BREAK "); }
+exit                                        { printf("EXIT "); }
 
-int { printf("INT_TYPE "); }
-float { printf("FLOAT_TYPE "); }
-double { printf("DOUBLE_TYPE "); }
-char { printf("CHAR_TYPE "); }
-string { printf("STRING_TYPE "); }
-bool { printf("BOOL_TYPE "); }
+int                                         { printf("INT_TYPE "); }
+float                                       { printf("FLOAT_TYPE "); }
+double                                      { printf("DOUBLE_TYPE "); }
+char                                        { printf("CHAR_TYPE "); }
+string                                      { printf("STRING_TYPE "); }
+bool                                        { printf("BOOL_TYPE "); }
 
-array { printf("ARRAY_GTYPE "); }
-set { printf("SET_GTYPE "); }
+array                                       { printf("ARRAY_GTYPE "); }
+set                                         { printf("SET_GTYPE "); }
 
-\; { printf("SC "); }
-\, { printf("CMM "); }
-\( { printf("OPNP "); }
-\) { printf("CLSP "); }
-\[ { printf("OPNT "); }
-\] { printf("CLST "); }
-\{ { printf("OPNB "); }
-\} { printf("CLSB "); }
+\;                                          { printf("SC "); }
+\,                                          { printf("CMM "); }
+\(                                          { printf("OPNP "); }
+\)                                          { printf("CLSP "); }
+\[                                          { printf("OPNT "); }
+\]                                          { printf("CLST "); }
+\{                                          { printf("OPNB "); }
+\}                                          { printf("CLSB "); }
 
-\= { printf("ASSIGN "); }
-\+ { printf("PLUS "); }
-\- { printf("MINUS "); }
-\/ { printf("DIV "); }
-\* { printf("TIMES "); }
+\=                                          { printf("ASSIGN "); }
+\+                                          { printf("PLUS "); }
+\-                                          { printf("MINUS "); }
+\/                                          { printf("DIV "); }
+\*                                          { printf("TIMES "); }
 
-\=\= { printf("EQQ "); }
-\!\= { printf("DIFF "); }
-\<\= { printf("LESSEQ "); }
-\< { printf("LESS "); }
-\>\= { printf("HGREQ "); }
-\> { printf("HGR "); }
+\=\=                                        { printf("EQQ "); }
+\!\=                                        { printf("DIFF "); }
+\<\=                                        { printf("LESSEQ "); }
+\<                                          { printf("LESS "); }
+\>\=                                        { printf("HGREQ "); }
+\>                                          { printf("HGR "); }
 
-\&\& { printf("AND "); }
-\|\| { printf("OR "); }
+\&\&                                        { printf("AND "); }
+\|\|                                        { printf("OR "); }
 
-\{([0-9]+(" "*," "*[0-9]+)*)\} { printf("LIT_SET "); }
-\[([0-9]+(" "*," "*[0-9]+)*)\] { printf("LIT_ARRAY "); }
+\{([0-9]+(" "*," "*[0-9]+)*)\}              { printf("LIT_SET "); }
+\[([0-9]+(" "*," "*[0-9]+)*)\]              { printf("LIT_ARRAY "); }
 
+[a-z][a-zA-Z0-9]*                           { printf("ID "); }
 
-[a-z][a-zA-Z0-9]* { printf("ID "); }
+[0-9]+                                      { printf("LIT_INT "); }
+([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)         { printf("LIT_DEC "); }
 
-[0-9]+ { printf("LIT_INT "); }
-([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+) { printf("LIT_DEC "); }
-
-\n    { printf("\n"); }
+\n                                          { printf("\n"); }
 " " {  }
-. { printf("?"); }
+.                                           { printf("?"); }
 %%
 /*
 -> Array:
