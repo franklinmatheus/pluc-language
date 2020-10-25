@@ -9,7 +9,7 @@
 %%
 \"(\\.|[^"\\])*\" { printf("STRING_LIT "); }
 \'([a-z]|[A-Z])\' { printf("CHAR_LIT "); }
-[tT][rR][uU][eE]|[fF][aA][lL][sS][eE] { printf("BOOL_LIT "); }
+true|false { printf("BOOL_LIT "); }
 
 if { printf("IF "); }
 while { printf("WHILE "); }
@@ -61,7 +61,7 @@ set { printf("SET_GTYPE "); }
 \[([0-9]+(" "*," "*[0-9]+)*)\] { printf("LIT_ARRAY "); }
 
 
-[a-z][a-zA-Z0-9]* { printf("ID "); }
+[a-z][a-zA-Z0-9]* { printf("ID(%s) ", yytext); }
 
 [0-9]+ { printf("LIT_INT "); }
 ([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+) { printf("LIT_DEC "); }
