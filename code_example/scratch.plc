@@ -1,0 +1,6 @@
+int main() {
+    bool teste = true;
+    if (!teste) {
+        // do something
+    }
+}

@@ -1,3 +1,6 @@
+/*
+    quicksort implementation in pluc language
+*/
 void quicksort (array int values, int began, int end) {
     int i, j, pivo, aux;
     i = began;
