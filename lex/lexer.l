@@ -12,62 +12,60 @@
 
 %%
 
-(\/\*([^*]|[\r\n]|(\*+([^*\/]|[\r\n])))*\*+\/)|(\/\/.*) { printf("COMMENT: %s.\n", yytext); }
+(\/\*([^*]|[\r\n]|(\*+([^*\/]|[\r\n])))*\*+\/)|(\/\/.*)         { }
 
-\"(\\.|[^"\\])*\"                                       { char_num += strlen(yytext); printf("STRING_LIT(%s) ", yytext); }
-\'([a-z]|[A-Z])\'                                       { char_num += strlen(yytext); printf("CHAR_LIT(%s) ", yytext); }
-true|false                                              { char_num += strlen(yytext); printf("BOOL_LIT(%s) ", yytext); }
+\"(\\.|[^"\\])*\"                                               { char_num += strlen(yytext); printf("STRING_LIT(%s) ", yytext); }
+\'([a-z]|[A-Z])\'                                               { char_num += strlen(yytext); printf("CHAR_LIT(%s) ", yytext); }
+true|false                                                      { char_num += strlen(yytext); printf("BOOL_LIT(%s) ", yytext); }
 
-if                                                      { char_num += 2; printf("IF "); }
-while                                                   { char_num += 5; printf("WHILE "); }
-do                                                      { char_num += 2; printf("DO "); }
-for                                                     { char_num += 3; printf("FOR "); }
+if                                                              { char_num += 2; printf("IF "); }
+while                                                           { char_num += 5; printf("WHILE "); }
+do                                                              { char_num += 2; printf("DO "); }
+for                                                             { char_num += 3; printf("FOR "); }
 
-void                                                    { char_num += 4; printf("VOID "); }
+return                                                          { char_num += 6; printf("RETURN "); }
+break                                                           { char_num += 5; printf("BREAK "); }
+exit                                                            { char_num += 4; printf("EXIT "); }
 
-return                                                  { char_num += 6; printf("RETURN "); }
-break                                                   { char_num += 5; printf("BREAK "); }
-exit                                                    { char_num += 4; printf("EXIT "); }
+void|short|int|long|float|double|char|string|bool|array|set     { char_num += strlen(yytext); printf("TYPE(%s) ", yytext); }
 
-short|int|long|float|double|char|string|bool|array|set  { char_num += strlen(yytext); printf("TYPE(%s) ", yytext); }
+\;                                                              { ++char_num; printf("SC "); }
+\,                                                              { ++char_num; printf("CMM "); }
+\(                                                              { ++char_num; printf("OPNP "); }
+\)                                                              { ++char_num; printf("CLSP "); }
+\[                                                              { ++char_num; printf("OPNT "); }
+\]                                                              { ++char_num; printf("CLST "); }
+\{                                                              { ++char_num; printf("OPNB "); }
+\}                                                              { ++char_num; printf("CLSB "); }
 
-\;                                                      { ++char_num; printf("SC "); }
-\,                                                      { ++char_num; printf("CMM "); }
-\(                                                      { ++char_num; printf("OPNP "); }
-\)                                                      { ++char_num; printf("CLSP "); }
-\[                                                      { ++char_num; printf("OPNT "); }
-\]                                                      { ++char_num; printf("CLST "); }
-\{                                                      { ++char_num; printf("OPNB "); }
-\}                                                      { ++char_num; printf("CLSB "); }
+\=                                                              { ++char_num; printf("ASSIGN "); }
+\+                                                              { ++char_num; printf("PLUS "); }
+\-                                                              { ++char_num; printf("MINUS "); }
+\/                                                              { ++char_num; printf("DIV "); }
+\*                                                              { ++char_num; printf("TIMES "); }
 
-\=                                                      { ++char_num; printf("ASSIGN "); }
-\+                                                      { ++char_num; printf("PLUS "); }
-\-                                                      { ++char_num; printf("MINUS "); }
-\/                                                      { ++char_num; printf("DIV "); }
-\*                                                      { ++char_num; printf("TIMES "); }
+\=\=                                                            { char_num += 2; printf("EQQ "); }
+\!\=                                                            { char_num += 2; printf("DIFF "); }
+\<\=                                                            { char_num += 2; printf("LESSEQ "); }
+\<                                                              { char_num += 1; printf("LESS "); }
+\>\=                                                            { char_num += 2; printf("HGREQ "); }
+\>                                                              { char_num += 1; printf("HGR "); }
 
-\=\=                                                    { char_num += 2; printf("EQQ "); }
-\!\=                                                    { char_num += 2; printf("DIFF "); }
-\<\=                                                    { char_num += 2; printf("LESSEQ "); }
-\<                                                      { char_num += 1; printf("LESS "); }
-\>\=                                                    { char_num += 2; printf("HGREQ "); }
-\>                                                      { char_num += 1; printf("HGR "); }
+\&\&                                                            { char_num += 2; printf("AND "); }
+\|\|                                                            { char_num += 2; printf("OR "); }
+\!                                                              { char_num += 1; printf("NOT "); }
 
-\&\&                                                    { char_num += 2; printf("AND "); }
-\|\|                                                    { char_num += 2; printf("OR "); }
-\!                                                      { char_num += 1; printf("NOT "); }
+[a-z][a-zA-Z0-9]*                                               { char_num += strlen(yytext); printf("ID(%s) ", yytext); }
 
-[a-z][a-zA-Z0-9]*                                       { char_num += strlen(yytext); printf("ID(%s) ", yytext); }
+[0-9]+                                                          { char_num += strlen(yytext); printf("LIT_INT(%s) ", yytext); }
+([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { char_num += strlen(yytext); printf("LIT_DEC(%s) ", yytext); }
 
-[0-9]+                                                  { char_num += strlen(yytext); printf("LIT_INT(%s) ", yytext); }
-([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                     { char_num += strlen(yytext); printf("LIT_DEC(%s) ", yytext); }
+\.                                                              { ++char_num; printf("DOT "); }
 
-\.                                                      { ++char_num; printf("DOT "); }
+\n                                                              { ++yylineno; printf("\n "); }
 
-\n                                                      { ++yylineno; printf("\n "); }
-
-[ \t]+                                                  {  }
-.                                                       { ++char_num; printf("[Illegal character at line %d: %s] ", yylineno, yytext); ++error_num; }
+[ \t]+                                                          {  }
+.                                                               { ++char_num; printf("[Illegal character at line %d: %s] ", yylineno, yytext); ++error_num; }
 %%
 int main(int argc, char *argv[]) {
   // verify params lenght
