@@ -69,8 +69,28 @@ short|int|long|float|double|char|string|bool|array|set  { char_num += strlen(yyt
 [ \t]+                                                  {  }
 .                                                       { ++char_num; printf("[Illegal character at line %d: %s] ", yylineno, yytext); ++error_num; }
 %%
-int main(void) {
+int main(int argc, char *argv[]) {
+  // verify params lenght
+  if(argc < 2) {
+    printf("Especifique o arquivo na entrada.\n");
+    return -1;
+  }
+
+  // open file
+  FILE *file = fopen(argv[1], "r");
+  if(!file) {
+    printf("Nao foi possivel identificar arquivo.\n");
+    return -1;
+  }
+
+  // input to lex
+  yyin = file;
+
+  // execution
   yylex();
-  printf("\n# of lines = %d, # of chars (no comment) = %d, # of errors = %d", yylineno, char_num, error_num);
+  printf("\n# of lines = %d, # of chars (no comment) = %d, # of errors = %d\n", yylineno, char_num, error_num);
+
+  // close file
+  fclose(file);
   return 0;
 }
