@@ -22,12 +22,14 @@ return                                      { printf("RETURN "); }
 break                                       { printf("BREAK "); }
 exit                                        { printf("EXIT "); }
 
-int                                         { printf("INT_TYPE "); }
-float                                       { printf("FLOAT_TYPE "); }
-double                                      { printf("DOUBLE_TYPE "); }
-char                                        { printf("CHAR_TYPE "); }
-string                                      { printf("STRING_TYPE "); }
-bool                                        { printf("BOOL_TYPE "); }
+short                                       { printf("TYPE(%s) ", yytext); }
+int                                         { printf("TYPE(%s) ", yytext); }
+long                                        { printf("TYPE(%s) ", yytext); }
+float                                       { printf("TYPE(%s) ", yytext); }
+double                                      { printf("TYPE(%s) ", yytext); }
+char                                        { printf("TYPE(%s) ", yytext); }
+string                                      { printf("TYPE(%s) ", yytext); }
+bool                                        { printf("TYPE(%s) ", yytext); }
 
 array                                       { printf("ARRAY_GTYPE "); }
 set                                         { printf("SET_GTYPE "); }
@@ -60,14 +62,14 @@ set                                         { printf("SET_GTYPE "); }
 \{([0-9]+(" "*," "*[0-9]+)*)\}              { printf("LIT_SET "); }
 \[([0-9]+(" "*," "*[0-9]+)*)\]              { printf("LIT_ARRAY "); }
 
-[a-z][a-zA-Z0-9]*                           { printf("ID "); }
+[a-z][a-zA-Z0-9]*                           { printf("ID(%s) ", yytext); }
 
 [0-9]+                                      { printf("LIT_INT "); }
 ([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)         { printf("LIT_DEC "); }
 
 \n                                          { printf("\n"); }
 " " {  }
-.                                           { printf("?"); }
+.                                           { printf("Illegal character"); }
 %%
 /*
 -> Array:
