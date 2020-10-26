@@ -7,6 +7,7 @@
  */
 
 %%
+
 \"(\\.|[^"\\])*\"                           { printf("STRING_LIT "); }
 \'([a-z]|[A-Z])\'                           { printf("CHAR_LIT "); }
 [tT][rR][uU][eE]|[fF][aA][lL][sS][eE]       { printf("BOOL_LIT "); }
@@ -58,6 +59,7 @@ set                                         { printf("SET_GTYPE "); }
 
 \&\&                                        { printf("AND "); }
 \|\|                                        { printf("OR "); }
+\!                                          { printf("NOT "); }
 
 \{([0-9]+(" "*," "*[0-9]+)*)\}              { printf("LIT_SET "); }
 \[([0-9]+(" "*," "*[0-9]+)*)\]              { printf("LIT_ARRAY "); }
@@ -68,16 +70,15 @@ set                                         { printf("SET_GTYPE "); }
 ([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)         { printf("LIT_DEC "); }
 
 \n                                          { printf("\n"); }
-" " {  }
-.                                           { printf("Illegal character"); }
+" "                                         {  }
+.                                           { printf("Illegal character ");}
 %%
 /*
 -> Array:
 |--> Array pode ser vazio, apenas um elemento, ou vários elementos separados por vírtula
 |--> "[" "]" | "[" ([0-9]+(" "* ", " " ")) [0-9]+"]"
 */
-int main(void)
-{
+int main(void) {
   yylex();
   
   return 0;
