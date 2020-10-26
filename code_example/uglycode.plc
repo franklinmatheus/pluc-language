@@ -1,0 +1,11 @@
+/* comment
+// inside
+/* comment */
+*/
+
+Void function (array string names) {
+        INT $a, 1b     ,*c;
+        @short d = a +  b*c;
+        names[d] = "name';
+        a.b.12.34;
+}
