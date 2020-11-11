@@ -1,7 +1,7 @@
 %{
-  #include <stdio.h>
-  #include <stdlib.h>
-  #include <string.h>
+  #include stdio.h
+  #include stdlib.h
+  #include string.h
 
   typedef struct node
   {
@@ -25,89 +25,130 @@
 %union {
   	int    iValue; 	/* integer value */
 	char   cValue; 	/* char value */
-	char *sValue;  /* string value */
+	char  *sValue;  /* string value */
  };
 
-%start lines
-
-%token	<iValue> NUMBER
-%token	PLUS	MINUS	TIMES	DIVIDE	POWER
-%token	LEFT_PARENTHESIS	RIGHT_PARENTHESIS
-%token	END
-
-%type <npValue> exp term factor
-
-%left	PLUS	MINUS
-%left	TIMES	DIVIDE
-%right	POWER
+%start program
 
 %%
 
-program:
+program:        sections {}
 
-sections:
+sections:       section {}
+                | section sections {}
 
-section:
+section:        decl {}
+                | func {}
 
-decl:
+decl:           type var_decls SC {}
 
-type:
+type:           group_type unit_type {}
+                | unit_type {}
 
-group_type:
+group_type:     SET {}
+                | ARRAY {}
 
-unit_type:
+unit_type:      INT {}
+                | FLOAT {}
+                | DOUBLE {}
+                | CHAR {}
+                | STRING {}
+                | BOOL {}
+                | VOID {}
 
-var_decls:
+var_decls:      var_decl {}
+                | var_decl CMM var_decls {}
 
-var_decl:
+var_decl:       ID {}
+                | assign_lit {}
 
-assign_lit:
+assign_lit:     ID ASSIGN lit {}
+                | arr_acss EQ lit {}
 
-lit:
+lit:            NUMBER {}
+                | DECIMAL {} 
+                | STRING {}
+                | CHAR {}
+                | BOOL {}
 
-func:
+func:           type ID LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
 
-func_params:
+func_params:    VOID {}
+                | params {}
 
-params:
+params:         param {}
+                | param CMM params {}
 
-stmts:
+param:          type ID {}
 
-stmt:
+stmts:          stmt {}
+                | stmt stmts {}
 
-selection_stmt:
+stmt:           selection_stmt {}
+                | iteration_stmt {}
+                | escape {}
+                | assign {} 
+                | decl {}
+                | print {}
 
-if:
+selection_stmt: if {}
+                | switch {}
 
-else:
+if:             if LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
+                | if LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE else {}
 
-iteration_stmt:
+else:           else LEFT_BRACE stmts RIGHT_BRACE {}
 
-while:
+iteration_stmt: for {}
+                | while {}
+                | do_while {}
 
-escape:
+while:          while LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
 
-assign:
+escape:         break SC {}
+                | exit SC {}
+                | return expr SC {}
 
-assign_expr:
+assign:         assign_lit {}
+                | assign_expr {}
 
-expr:
+assign_expr:    ID EQ expr {}
+                | arr_acss EQ expr {}
 
-func_call:
+expr:           ID {}
+                | lit {}
+                | func_call {}
+                | arr_acss {}
+                | expr op expr {}
+                | LEFT_PAREN expr op expr RIGHT_PAREN {}
 
-exprs:
+func_call:      ID LEF_PAREN exprs RIGHT_PAREN {}
 
-arr_accss:
+exprs:          expr {}
+                | expr CMM exprs {}
 
-op:
+arr_accss:      ID LEFT_BRACK expr RIGHT_BRACK {}
 
-math_op:
+op:             math_op {}
+                | comp_op {}
+                | logic_op {}
 
-comp_op:
+math_op:        PLUS {}
+                | MINUS {}
+                | TIMES {} 
+                | DIV {}
 
-logic_op:
+comp_op:        EQQ {}
+                | DIFF {}
+                | LSSEQ {}
+                | LESS {}
+                | HIGHEREQ {} 
+                | HIGHER {}
 
-print: 
+logic_op:       AND {}
+                | OR {}
+
+print:          print LEFT_PAREN expr RIGHT_PAREN {}
 
 %%
 
