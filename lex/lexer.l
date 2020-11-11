@@ -6,66 +6,66 @@
  *	      stdin> Ctrl-D
  */
 %{
-  int error_num = 0;
-  int char_num = 0;
+#include "y.tab.h"
+#include <stdio.h>
+
+extern int yyerror (char *msg);
 %}
 
 %%
 
 (\/\*([^*]|[\r\n]|(\*+([^*\/]|[\r\n])))*\*+\/)|(\/\/.*)         { }
 
-\"(\\.|[^"\\])*\"                                               { char_num += strlen(yytext); printf("STRING_LIT(%s) ", yytext); }
-\'([a-z]|[A-Z])\'                                               { char_num += strlen(yytext); printf("CHAR_LIT(%s) ", yytext); }
-true|false                                                      { char_num += strlen(yytext); printf("BOOL_LIT(%s) ", yytext); }
+\"(\\.|[^"\\])*\"                                               { yylval.sValue = strdup(yytext); return STRING; }
+\'([a-z]|[A-Z])\'                                               { yylval.cValue = strdup(yytext); return CHAR; }
+true|false                                                      { return BOOLEAN; }
 
-if                                                              { char_num += 2; printf("IF "); }
-while                                                           { char_num += 5; printf("WHILE "); }
-do                                                              { char_num += 2; printf("DO "); }
-for                                                             { char_num += 3; printf("FOR "); }
+if                                                              return(IF);
+while                                                           return(WHILE);
+do                                                              return(DO);
+for                                                             return(FOR);
 
-return                                                          { char_num += 6; printf("RETURN "); }
-break                                                           { char_num += 5; printf("BREAK "); }
-exit                                                            { char_num += 4; printf("EXIT "); }
+return                                                          return(RETURN);
+break                                                           return(BREAK);
+exit                                                            return(EXIT);
 
-void|short|int|long|float|double|char|string|bool|array|set     { char_num += strlen(yytext); printf("TYPE(%s) ", yytext); }
+void|short|int|long|float|double|char|string|bool|array|set     return(TYPE);
 
-\;                                                              { ++char_num; printf("SC "); }
-\,                                                              { ++char_num; printf("CMM "); }
-\(                                                              { ++char_num; printf("OPNP "); }
-\)                                                              { ++char_num; printf("CLSP "); }
-\[                                                              { ++char_num; printf("OPNT "); }
-\]                                                              { ++char_num; printf("CLST "); }
-\{                                                              { ++char_num; printf("OPNB "); }
-\}                                                              { ++char_num; printf("CLSB "); }
+\;                                                              return(SC);
+\,                                                              return(CMM);
+\(                                                              return(LEFTPAREN);
+\)                                                              return(RIGHTPAREN);
+\[                                                              return(LEFTBRACKET);
+\]                                                              return(RIGHTBRACKET);
+\{                                                              return(LEFTBRACE);
+\}                                                              return(RIGHTBRACE);
 
-\=                                                              { ++char_num; printf("ASSIGN "); }
-\+                                                              { ++char_num; printf("PLUS "); }
-\-                                                              { ++char_num; printf("MINUS "); }
-\/                                                              { ++char_num; printf("DIV "); }
-\*                                                              { ++char_num; printf("TIMES "); }
+\=                                                              return(ASSIGN);
+\+                                                              return(PLUS);
+\-                                                              return(MINUS);
+\/                                                              return(DIV);
+\*                                                              return(TIMES);
 
-\=\=                                                            { char_num += 2; printf("EQQ "); }
-\!\=                                                            { char_num += 2; printf("DIFF "); }
-\<\=                                                            { char_num += 2; printf("LESSEQ "); }
-\<                                                              { char_num += 1; printf("LESS "); }
-\>\=                                                            { char_num += 2; printf("HGREQ "); }
-\>                                                              { char_num += 1; printf("HGR "); }
+\=\=                                                            return(EQQ);
+\!\=                                                            return(DIFF);
+\<\=                                                            return(LESSEQ);
+\<                                                              return(LESS);
+\>\=                                                            return(HIGHEREQ);
+\>                                                              return(HIGHER);
 
-\&\&                                                            { char_num += 2; printf("AND "); }
-\|\|                                                            { char_num += 2; printf("OR "); }
-\!                                                              { char_num += 1; printf("NOT "); }
+\&\&                                                            return(AND);
+\|\|                                                            return(OR);
+\!                                                              return(NOT);
 
-[a-z][a-zA-Z0-9]*                                               { char_num += strlen(yytext); printf("ID(%s) ", yytext); }
+[a-z][a-zA-Z0-9]*                                               { yylval.sValue = strdup(yytext); return ID; }
 
-[0-9]+                                                          { char_num += strlen(yytext); printf("LIT_INT(%s) ", yytext); }
-([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { char_num += strlen(yytext); printf("LIT_DEC(%s) ", yytext); }
+[0-9]+                                                          { yylval.iValue = atoi(yytext); return NUMBER; }
+([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { yylval.iValue = atof(yytext); return DECIMAL; }
 
-\.                                                              { ++char_num; printf("DOT "); }
+\.                                                              return(DOT);
 
-\n                                                              { ++yylineno; printf("\n "); }
-
-[ \t]+                                                          {  }
-.                                                               { ++char_num; printf("[Illegal character at line %d: %s] ", yylineno, yytext); ++error_num; }
+[ \t\n]+                                                        {  }
+.                                                               { yyerror("invalid character"); }
 %%
 int main(int argc, char *argv[]) {
   // verify params lenght
