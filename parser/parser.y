@@ -30,6 +30,12 @@
 
 %start program
 
+%token <sValue> ID
+%token <iValue> NUMBER
+
+%left	PLUS	MINUS
+%left	TIMES	DIV
+
 %%
 
 program:        sections {}
@@ -42,19 +48,15 @@ section:        decl {}
 
 decl:           type var_decls SC {}
 
-type:           group_type unit_type {}
-                | unit_type {}
-
-group_type:     SET {}
-                | ARRAY {}
-
-unit_type:      INT {}
+type:           INT {}
                 | FLOAT {}
                 | DOUBLE {}
                 | CHAR {}
                 | STRING {}
                 | BOOL {}
                 | VOID {}
+                | SET type {}
+                | ARRAY type {}
 
 var_decls:      var_decl {}
                 | var_decl CMM var_decls {}
