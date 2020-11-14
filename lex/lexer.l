@@ -16,20 +16,33 @@ extern int yyerror (char *msg);
 
 (\/\*([^*]|[\r\n]|(\*+([^*\/]|[\r\n])))*\*+\/)|(\/\/.*)         { }
 
-\"(\\.|[^"\\])*\"                                               { yylval.sValue = strdup(yytext); return STRING; }
-\'([a-z]|[A-Z])\'                                               { yylval.cValue = strdup(yytext); return CHAR; }
-true|false                                                      { yylval.sValue = strdup(yytext); return BOOLEAN; }
+\"(\\.|[^"\\])*\"                                               { yylval.sValue = strdup(yytext); return LIT_STRING; }
+\'([a-z]|[A-Z])\'                                               { yylval.cValue = strdup(yytext); return LIT_CHAR; }
+true|false                                                      { yylval.sValue = strdup(yytext); return LIT_BOOLEAN; }
 
 if                                                              return(IF);
+else                                                            return(ELSE);
 while                                                           return(WHILE);
 do                                                              return(DO);
 for                                                             return(FOR);
+
+print                                                           return(PRINT);
 
 return                                                          return(RETURN);
 break                                                           return(BREAK);
 exit                                                            return(EXIT);
 
-void|short|int|long|float|double|char|string|bool|array|set     { yylval.sValue = strdup(yytext); return TYPE; }
+void                                                            return(VOID);
+short                                                           return(SHORT);
+int                                                             return(INT);
+long                                                            return(LONG);
+float                                                           return(FLOAT);
+double                                                          return(DOUBLE);
+char                                                            return(CHAR);
+string                                                          return(STRING);
+bool                                                            return(BOOL);
+array                                                           return(ARRAY);
+set                                                             return (SET);
 
 \;                                                              return(SC);
 \,                                                              return(CMM);
@@ -59,8 +72,8 @@ void|short|int|long|float|double|char|string|bool|array|set     { yylval.sValue 
 
 [a-z][a-zA-Z0-9]*                                               { yylval.sValue = strdup(yytext); return ID; }
 
-[0-9]+                                                          { yylval.iValue = atoi(yytext); return NUMBER; }
-([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { yylval.iValue = atof(yytext); return DECIMAL; }
+[0-9]+                                                          { yylval.iValue = atoi(yytext); return LIT_NUMBER; }
+([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { yylval.iValue = atof(yytext); return LIT_DECIMAL; }
 
 \.                                                              return(DOT);
 

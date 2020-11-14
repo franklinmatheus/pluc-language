@@ -1,7 +1,7 @@
 %{
-  #include stdio.h
-  #include stdlib.h
-  #include string.h
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
 
   int yylex();
   int yyerror(char *s);
@@ -20,15 +20,15 @@
 %start program
 
 %token <sValue> ID
-%token <sValue> STRING
-%token <cValue> CHAR
-%token <sValue> BOOLEAN
-%token <iValue> NUMBER
-%token <dValue> DECIMAL
-%token <sValue> TYPE
+%token <sValue> LIT_STRING
+%token <cValue> LIT_CHAR
+%token <sValue> LIT_BOOLEAN
+%token <iValue> LIT_NUMBER
+%token <dValue> LIT_DECIMAL 
 
-
-%token IF WHILE DO FOR
+%token PRINT
+%token VOID SHORT INT LONG FLOAT DOUBLE CHAR STRING BOOL ARRAY SET
+%token IF ELSE WHILE DO FOR
 %token RETURN BREAK EXIT
 %token SC CMM LEFT_PAREN RIGHT_PAREN LEFT_BRACKET RIGHT_BRACKET LEFT_BRACE RIGHT_BRACE
 %token ASSIGN PLUS MINUS DIV TIMES
@@ -58,6 +58,8 @@ type:           INT {}
                 | STRING {}
                 | BOOL {}
                 | VOID {}
+                | SHORT {}
+                | LONG {}
                 | SET type {}
                 | ARRAY type {}
 
@@ -68,13 +70,13 @@ var_decl:       ID {}
                 | assign_lit {}
 
 assign_lit:     ID ASSIGN lit {}
-                | arr_acss EQ lit {}
+                | arr_accss ASSIGN lit {}
 
-lit:            NUMBER {}
-                | DECIMAL {} 
-                | STRING {}
-                | CHAR {}
-                | BOOL {}
+lit:            LIT_NUMBER {}
+                | LIT_DECIMAL {} 
+                | LIT_STRING {}
+                | LIT_CHAR {}
+                | LIT_BOOLEAN {}
 
 func:           type ID LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
 
@@ -97,37 +99,34 @@ stmt:           selection_stmt {}
                 | print {}
 
 selection_stmt: if {}
-                | switch {}
 
-if:             if LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
-                | if LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE else {}
+if:             IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
+                | IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE else {}
 
-else:           else LEFT_BRACE stmts RIGHT_BRACE {}
+else:           ELSE LEFT_BRACE stmts RIGHT_BRACE {}
 
-iteration_stmt: for {}
-                | while {}
-                | do_while {}
+iteration_stmt: while {}
 
-while:          while LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
+while:          WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
 
-escape:         break SC {}
-                | exit SC {}
-                | return expr SC {}
+escape:         BREAK SC {}
+                | EXIT SC {}
+                | RETURN expr SC {}
 
 assign:         assign_lit {}
                 | assign_expr {}
 
-assign_expr:    ID EQ expr {}
-                | arr_acss EQ expr {}
+assign_expr:    ID ASSIGN expr {}
+                | arr_accss ASSIGN expr {}
 
 expr:           ID {}
                 | lit {}
                 | func_call {}
-                | arr_acss {}
+                | arr_accss {}
                 | expr op expr {}
                 | LEFT_PAREN expr op expr RIGHT_PAREN {}
 
-func_call:      ID LEF_PAREN exprs RIGHT_PAREN {}
+func_call:      ID LEFT_PAREN exprs RIGHT_PAREN {}
 
 exprs:          expr {}
                 | expr CMM exprs {}
@@ -153,7 +152,7 @@ comp_op:        EQQ {}
 logic_op:       AND {}
                 | OR {}
 
-print:          print LEFT_PAREN expr RIGHT_PAREN {}
+print:          PRINT LEFT_PAREN expr RIGHT_PAREN {}
 
 %%
 
