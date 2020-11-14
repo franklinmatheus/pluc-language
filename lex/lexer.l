@@ -24,7 +24,6 @@ if                                                              return(IF);
 else                                                            return(ELSE);
 while                                                           return(WHILE);
 do                                                              return(DO);
-for                                                             return(FOR);
 
 print                                                           return(PRINT);
 
@@ -74,8 +73,6 @@ set                                                             return (SET);
 
 [0-9]+                                                          { yylval.iValue = atoi(yytext); return LIT_NUMBER; }
 ([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { yylval.iValue = atof(yytext); return LIT_DECIMAL; }
-
-\.                                                              return(DOT);
 
 [ \t\n]+                                                        {  }
 .                                                               { yyerror("invalid character"); }

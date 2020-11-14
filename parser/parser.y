@@ -28,13 +28,12 @@
 
 %token PRINT
 %token VOID SHORT INT LONG FLOAT DOUBLE CHAR STRING BOOL ARRAY SET
-%token IF ELSE WHILE DO FOR
+%token IF ELSE WHILE DO
 %token RETURN BREAK EXIT
 %token SC CMM LEFT_PAREN RIGHT_PAREN LEFT_BRACKET RIGHT_BRACKET LEFT_BRACE RIGHT_BRACE
 %token ASSIGN PLUS MINUS DIV TIMES
 %token EQQ DIFF LESS_EQ LESS HIGHER_EQ HIGHER
 %token AND OR NOT
-%token DOT
 
 %left	PLUS	MINUS
 %left	TIMES	DIV
@@ -42,14 +41,18 @@
 %%
 
 program:        sections {}
+                ;
 
 sections:       section {}
                 | section sections {}
+                ;
 
 section:        decl {}
                 | func {}
+                ;
 
 decl:           type var_decls SC {}
+                ;
 
 type:           INT {}
                 | FLOAT {}
@@ -62,34 +65,44 @@ type:           INT {}
                 | LONG {}
                 | SET type {}
                 | ARRAY type {}
+                ;
 
 var_decls:      var_decl {}
                 | var_decl CMM var_decls {}
+                ;
 
 var_decl:       ID {}
                 | assign_lit {}
+                ;
 
 assign_lit:     ID ASSIGN lit {}
                 | arr_accss ASSIGN lit {}
+                ;
 
 lit:            LIT_NUMBER {}
                 | LIT_DECIMAL {} 
                 | LIT_STRING {}
                 | LIT_CHAR {}
                 | LIT_BOOLEAN {}
+                ;
 
 func:           type ID LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
+                ;
 
 func_params:    VOID {}
                 | params {}
+                ;
 
 params:         param {}
                 | param CMM params {}
+                ;
 
 param:          type ID {}
+                ;
 
 stmts:          stmt {}
                 | stmt stmts {}
+                ;
 
 stmt:           selection_stmt {}
                 | iteration_stmt {}
@@ -97,27 +110,40 @@ stmt:           selection_stmt {}
                 | assign {} 
                 | decl {}
                 | print {}
+                ;
 
 selection_stmt: if {}
+                ;
 
 if:             IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
                 | IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE else {}
+                ;
 
 else:           ELSE LEFT_BRACE stmts RIGHT_BRACE {}
+                ;
 
 iteration_stmt: while {}
+                | do_while {}
+                ;
 
 while:          WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
+                ;
+
+do_while:        DO LEFT_BRACE stmts RIGHT_BRACE WHILE LEFT_PAREN expr RIGHT_PAREN SC {}
+                ;
 
 escape:         BREAK SC {}
                 | EXIT SC {}
                 | RETURN expr SC {}
+                ;
 
 assign:         assign_lit {}
                 | assign_expr {}
+                ;
 
 assign_expr:    ID ASSIGN expr {}
                 | arr_accss ASSIGN expr {}
+                ;
 
 expr:           ID {}
                 | lit {}
@@ -125,22 +151,29 @@ expr:           ID {}
                 | arr_accss {}
                 | expr op expr {}
                 | LEFT_PAREN expr op expr RIGHT_PAREN {}
+                | NOT expr {}
+                ;
 
 func_call:      ID LEFT_PAREN exprs RIGHT_PAREN {}
+                ;
 
 exprs:          expr {}
                 | expr CMM exprs {}
+                ;
 
 arr_accss:      ID LEFT_BRACKET expr RIGHT_BRACKET {}
+                ;
 
 op:             math_op {}
                 | comp_op {}
                 | logic_op {}
+                ;
 
 math_op:        PLUS {}
                 | MINUS {}
                 | TIMES {} 
                 | DIV {}
+                ;
 
 comp_op:        EQQ {}
                 | DIFF {}
@@ -148,11 +181,14 @@ comp_op:        EQQ {}
                 | LESS {}
                 | HIGHER_EQ {} 
                 | HIGHER {}
+                ;
 
 logic_op:       AND {}
                 | OR {}
+                ;
 
 print:          PRINT LEFT_PAREN expr RIGHT_PAREN {}
+                ;
 
 %%
 
