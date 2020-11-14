@@ -18,7 +18,7 @@ extern int yyerror (char *msg);
 
 \"(\\.|[^"\\])*\"                                               { yylval.sValue = strdup(yytext); return STRING; }
 \'([a-z]|[A-Z])\'                                               { yylval.cValue = strdup(yytext); return CHAR; }
-true|false                                                      { return BOOLEAN; }
+true|false                                                      { yylval.sValue = strdup(yytext); return BOOLEAN; }
 
 if                                                              return(IF);
 while                                                           return(WHILE);
@@ -29,16 +29,16 @@ return                                                          return(RETURN);
 break                                                           return(BREAK);
 exit                                                            return(EXIT);
 
-void|short|int|long|float|double|char|string|bool|array|set     return(TYPE);
+void|short|int|long|float|double|char|string|bool|array|set     { yylval.sValue = strdup(yytext); return TYPE; }
 
 \;                                                              return(SC);
 \,                                                              return(CMM);
-\(                                                              return(LEFTPAREN);
-\)                                                              return(RIGHTPAREN);
-\[                                                              return(LEFTBRACKET);
-\]                                                              return(RIGHTBRACKET);
-\{                                                              return(LEFTBRACE);
-\}                                                              return(RIGHTBRACE);
+\(                                                              return(LEFT_PAREN);
+\)                                                              return(RIGHT_PAREN);
+\[                                                              return(LEFT_BRACKET);
+\]                                                              return(RIGHT_BRACKET);
+\{                                                              return(LEFT_BRACE);
+\}                                                              return(RIGHT_BRACE);
 
 \=                                                              return(ASSIGN);
 \+                                                              return(PLUS);
@@ -48,9 +48,9 @@ void|short|int|long|float|double|char|string|bool|array|set     return(TYPE);
 
 \=\=                                                            return(EQQ);
 \!\=                                                            return(DIFF);
-\<\=                                                            return(LESSEQ);
+\<\=                                                            return(LESS_EQ);
 \<                                                              return(LESS);
-\>\=                                                            return(HIGHEREQ);
+\>\=                                                            return(HIGHER_EQ);
 \>                                                              return(HIGHER);
 
 \&\&                                                            return(AND);

@@ -3,18 +3,6 @@
   #include stdlib.h
   #include string.h
 
-  typedef struct node
-  {
-    struct node *left;
-    struct node *right;
-    int tokcode;
-    char *token;
-  } node;
-
-  /******************************* 
-    #define YYSTYPE struct node *
-  ********************************/
-
   int yylex();
   int yyerror(char *s);
   extern int yylineno;
@@ -23,15 +11,30 @@
 %}
 
 %union {
-  	int    iValue; 	/* integer value */
+  int    iValue; 	/* integer value */
 	char   cValue; 	/* char value */
 	char  *sValue;  /* string value */
+  double dValue;  /* float value */
  };
 
 %start program
 
 %token <sValue> ID
+%token <sValue> STRING
+%token <cValue> CHAR
+%token <sValue> BOOLEAN
 %token <iValue> NUMBER
+%token <dValue> DECIMAL
+%token <sValue> TYPE
+
+
+%token IF WHILE DO FOR
+%token RETURN BREAK EXIT
+%token SC CMM LEFT_PAREN RIGHT_PAREN LEFT_BRACKET RIGHT_BRACKET LEFT_BRACE RIGHT_BRACE
+%token ASSIGN PLUS MINUS DIV TIMES
+%token EQQ DIFF LESS_EQ LESS HIGHER_EQ HIGHER
+%token AND OR NOT
+%token DOT
 
 %left	PLUS	MINUS
 %left	TIMES	DIV
@@ -129,7 +132,7 @@ func_call:      ID LEF_PAREN exprs RIGHT_PAREN {}
 exprs:          expr {}
                 | expr CMM exprs {}
 
-arr_accss:      ID LEFT_BRACK expr RIGHT_BRACK {}
+arr_accss:      ID LEFT_BRACKET expr RIGHT_BRACKET {}
 
 op:             math_op {}
                 | comp_op {}
@@ -142,9 +145,9 @@ math_op:        PLUS {}
 
 comp_op:        EQQ {}
                 | DIFF {}
-                | LSSEQ {}
+                | LESS_EQ {}
                 | LESS {}
-                | HIGHEREQ {} 
+                | HIGHER_EQ {} 
                 | HIGHER {}
 
 logic_op:       AND {}
