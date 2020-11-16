@@ -1,6 +1,7 @@
 int main() {
     bool teste = true;
+    char a = 'a';
     if (!teste) {
-        // do something
+        teste = false;
     }
 }

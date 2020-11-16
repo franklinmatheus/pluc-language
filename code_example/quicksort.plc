@@ -30,7 +30,7 @@ void quicksort (array int values, int began, int end) {
 }
 
 int main () {
-    array int arr = ["oi", 3, 4, 65  ,32,2,43,9,6];
+    array int arr = [1, 3, 4, 65  ,32,2,43,9,6];
     quicksort(arr);
     print("O array ordenado é " + arr);
     return 0;
