@@ -6,7 +6,7 @@
  *	      stdin> Ctrl-D
  */
 %{
-#include "y.tab.h"
+#include "parser.tab.h"
 #include <stdio.h>
 
 extern int yyerror (char *msg);
@@ -77,28 +77,7 @@ set                                                             return (SET);
 [ \t\n]+                                                        {  }
 .                                                               { yyerror("invalid character"); }
 %%
-int main(int argc, char *argv[]) {
-  // verify params lenght
-  if(argc < 2) {
-    printf("Especifique o arquivo na entrada.\n");
-    return -1;
-  }
 
-  // open file
-  FILE *file = fopen(argv[1], "r");
-  if(!file) {
-    printf("Nao foi possivel identificar arquivo.\n");
-    return -1;
-  }
-
-  // input to lex
-  yyin = file;
-
-  // execution
-  yylex();
-  printf("\n# of lines = %d, # of chars (no comment) = %d, # of errors = %d\n", yylineno, char_num, error_num);
-
-  // close file
-  fclose(file);
-  return 0;
-}
+#ifndef yywrap
+   int yywrap (void) {return 1;}
+#endif

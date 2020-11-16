@@ -4,3 +4,5 @@
 *.output
 *.tab.c
 *.tab.h
+LexYaccExamples
+parser

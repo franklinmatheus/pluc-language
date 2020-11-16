@@ -72,11 +72,7 @@ var_decls:      var_decl {}
                 ;
 
 var_decl:       ID {}
-                | assign_lit {}
-                ;
-
-assign_lit:     ID ASSIGN lit {}
-                | arr_accss ASSIGN lit {}
+                | assign {}
                 ;
 
 lit:            LIT_NUMBER {}
@@ -89,8 +85,9 @@ lit:            LIT_NUMBER {}
 func:           type ID LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {}
                 ;
 
-func_params:    VOID {}
+func_params:    %empty {}
                 | params {}
+                | VOID {}
                 ;
 
 params:         param {}
@@ -107,9 +104,10 @@ stmts:          stmt {}
 stmt:           selection_stmt {}
                 | iteration_stmt {}
                 | escape {}
-                | assign {} 
                 | decl {}
                 | print {}
+                | func_stmt {}
+                | assign_stmt {} 
                 ;
 
 selection_stmt: if {}
@@ -137,35 +135,50 @@ escape:         BREAK SC {}
                 | RETURN expr SC {}
                 ;
 
-assign:         assign_lit {}
-                | assign_expr {}
+assign:         ID ASSIGN expr {}
+                | arr_access ASSIGN expr {}
+                | arr_assign {}
                 ;
 
-assign_expr:    ID ASSIGN expr {}
-                | arr_accss ASSIGN expr {}
+arr_assign:     ID ASSIGN LEFT_BRACKET arr_assign_content RIGHT_BRACKET {}
+                | ID ASSIGN type LEFT_PAREN LIT_NUMBER RIGHT_PAREN {}
                 ;
 
-expr:           ID {}
+arr_assign_content: expr {}
+                    | expr CMM arr_assign_content {}
+                    ;
+
+assign_stmt:    assign SC {}
+                ;
+
+expr:           expr_atom op expr {}
+                | NOT expr {}
+                | expr_atom {}
+                ; 
+
+expr_atom:      ID {}
                 | lit {}
                 | func_call {}
-                | arr_accss {}
-                | expr op expr {}
-                | LEFT_PAREN expr op expr RIGHT_PAREN {}
-                | NOT expr {}
+                | arr_access {}
+                | LEFT_PAREN expr RIGHT_PAREN {}
                 ;
 
-func_call:      ID LEFT_PAREN exprs RIGHT_PAREN {}
+func_call:      ID LEFT_PAREN RIGHT_PAREN {}
+                | ID LEFT_PAREN exprs RIGHT_PAREN {}
+                ;
+
+func_stmt:      func_call SC {}
                 ;
 
 exprs:          expr {}
                 | expr CMM exprs {}
                 ;
 
-arr_accss:      ID LEFT_BRACKET expr RIGHT_BRACKET {}
+arr_access:      ID LEFT_BRACKET expr RIGHT_BRACKET {}
                 ;
 
 op:             math_op {}
-                | comp_op {}
+                | rel_op {}
                 | logic_op {}
                 ;
 
@@ -175,7 +188,7 @@ math_op:        PLUS {}
                 | DIV {}
                 ;
 
-comp_op:        EQQ {}
+rel_op:        EQQ {}
                 | DIFF {}
                 | LESS_EQ {}
                 | LESS {}
@@ -187,7 +200,12 @@ logic_op:       AND {}
                 | OR {}
                 ;
 
-print:          PRINT LEFT_PAREN expr RIGHT_PAREN {}
+print:          PRINT LEFT_PAREN print_output RIGHT_PAREN SC {}
+                ;
+
+print_output:   lit {}
+                | ID {}
+                | lit PLUS print_output {}
                 ;
 
 %%
