@@ -28,14 +28,14 @@
 %token<iValue> LIT_NUMBER
 %token<dValue> LIT_DECIMAL 
 
-%token<sValue> PRINT
-%token<sValue> VOID SHORT INT LONG FLOAT DOUBLE CHAR STRING BOOL ARRAY SET
-%token<sValue> IF ELSE WHILE DO
-%token<sValue> RETURN BREAK EXIT
-%token<sValue> SC CMM LEFT_PAREN RIGHT_PAREN LEFT_BRACKET RIGHT_BRACKET LEFT_BRACE RIGHT_BRACE
-%token<sValue> ASSIGN PLUS MINUS DIV TIMES
-%token<sValue> EQQ DIFF LESS_EQ LESS HIGHER_EQ HIGHER
-%token<sValue> AND OR NOT
+%token PRINT
+%token VOID SHORT INT LONG FLOAT DOUBLE CHAR STRING BOOL ARRAY SET
+%token IF ELSE WHILE DO
+%token RETURN BREAK EXIT
+%token SC CMM LEFT_PAREN RIGHT_PAREN LEFT_BRACKET RIGHT_BRACKET LEFT_BRACE RIGHT_BRACE
+%token ASSIGN PLUS MINUS DIV TIMES
+%token EQQ DIFF LESS_EQ LESS HIGHER_EQ HIGHER
+%token AND OR NOT
 
 %left	PLUS	MINUS
 %left	TIMES	DIV
@@ -95,7 +95,7 @@ func:           type ID LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGH
 
 func_params:    %empty { $$ = ""; }
                 | params { $$ = $1; }
-                | VOID { $$ = $1; }
+                | VOID { $$ = "VOID"; }
                 ;
 
 params:         param { $$ = $1; }
