@@ -9,33 +9,7 @@
   extern int yylineno;
   extern char * yytext;
 
-  char* concatenate(int quantity, ...) {
-    va_list elements;
-    /* Initialize valist for arguments quantity */
-    va_start(elements, quantity);
-
-    /* Access all elements to get the final string size */
-    int result_length = 0;
-    for (int i = 0; i < quantity; ++i)
-      result_length += strlen(va_arg(elements, char*));
-
-    /* Clean memory reserved for valist */
-    va_end(elements);
-
-    /* Reserves a memory space of the required size  */
-    char* result = malloc(sizeof(char) * result_length);
-
-    /* Finally, concatenates all strings in result */
-    va_start(elements, quantity);
-    int delimiter = 0;
-    for (int i = 0; i < quantity; ++i) {
-      char* source = va_arg(elements, char*);
-      strcpy(result + delimiter, source);
-      delimiter += strlen(source);
-    }
-    return result;
-  }
-
+  char* concatenate(int quantity, ...);
 %}
 
 %union {
@@ -252,3 +226,30 @@ int yyerror (char *msg) {
 	fprintf (stderr, "%d: %s at '%s'\n", yylineno, msg, yytext);
 	return 0;
 }
+
+char* concatenate(int quantity, ...) {
+    va_list elements;
+    /* Initialize valist for arguments quantity */
+    va_start(elements, quantity);
+
+    /* Access all elements to get the final string size */
+    int result_length = 0;
+    for (int i = 0; i < quantity; ++i)
+      result_length += strlen(va_arg(elements, char*));
+
+    /* Clean memory reserved for valist */
+    va_end(elements);
+
+    /* Reserves a memory space of the required size  */
+    char* result = malloc(sizeof(char) * result_length);
+
+    /* Finally, concatenates all strings in result */
+    va_start(elements, quantity);
+    int delimiter = 0;
+    for (int i = 0; i < quantity; ++i) {
+      char* source = va_arg(elements, char*);
+      strcpy(result + delimiter, source);
+      delimiter += strlen(source);
+    }
+    return result;
+  }
