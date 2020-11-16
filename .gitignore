@@ -1,2 +1,8 @@
 *.out
 *lex.yy.c
+*.dot
+*.output
+*.tab.c
+*.tab.h
+LexYaccExamples
+parser
