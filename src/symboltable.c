@@ -9,6 +9,8 @@ struct Symbol {
     char* id;
     int scope; /* structure/func key */
     
+    char* text;
+
     unsigned short return_stmt;
 };
 
@@ -22,6 +24,10 @@ struct HashItem {
  */
 struct HashItem* hash_table[SIZE];
 
+/*
+ * stack of scopes (int)
+ * pointer tells the last scope
+ */
 int stack[CAPACITY];
 int pointer = 0;
 
@@ -49,6 +55,15 @@ int hash_code(int __key) {
     return __key % SIZE;
 }
 
+struct Symbol* new_symbol() {
+    struct Symbol* symbol = (struct Symbol*) malloc(sizeof(struct Symbol));
+    symbol->type = "";
+    symbol->id = "";
+    symbol->scope = -1;
+    symbol->text = "";
+    symbol->return_stmt = 0;
+    return symbol;
+}
 
 struct Symbol* lookup(char* __id) {
     unsigned short stop = 0;
@@ -94,4 +109,14 @@ void display(void) {
             printf("\treturn %d\n", hash_table[i]->symbol->return_stmt);
         }
     }
+}
+
+// returns 0 when types are compatible
+int compatible_types(char* __lhs, char* __rhs) {
+    return strcmp(__lhs, __rhs);
+}
+
+//for now, compatible types must be equals, so just returns one of them
+char* result_type(char* __lhs, char* __rhs) {
+    return __lhs;
 }

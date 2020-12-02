@@ -75,7 +75,8 @@ set                                                             return (SET);
 [0-9]+                                                          { yylval.iValue = atoi(yytext); return LIT_NUMBER; }
 ([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { yylval.iValue = atof(yytext); return LIT_DECIMAL; }
 
-[ \t\n]+                                                        {  }
+\n                                                              {yylineno++;}
+[ \t]+                                                          {  }
 .                                                               { yyerror("invalid character"); }
 %%
 
