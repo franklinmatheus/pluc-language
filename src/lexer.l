@@ -10,6 +10,7 @@
 #include <stdio.h>
 
 extern int yyerror (char *msg);
+
 %}
 
 %%
@@ -17,7 +18,7 @@ extern int yyerror (char *msg);
 (\/\*([^*]|[\r\n]|(\*+([^*\/]|[\r\n])))*\*+\/)|(\/\/.*)         { }
 
 \"(\\.|[^"\\])*\"                                               { yylval.sValue = strdup(yytext); return LIT_STRING; }
-\'([a-z]|[A-Z])\'                                               { yylval.cValue = strdup(yytext); return LIT_CHAR; }
+\'([a-z]|[A-Z])\'                                               { yylval.sValue = strdup(yytext); return LIT_CHAR; }
 true|false                                                      { yylval.sValue = strdup(yytext); return LIT_BOOLEAN; }
 
 if                                                              return(IF);

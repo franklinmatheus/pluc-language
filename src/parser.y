@@ -4,12 +4,27 @@
   #include <string.h>
   #include <stdarg.h>
 
+  #include "symboltable.c"
+
   int yylex();
   int yyerror(char *s);
   extern int yylineno;
   extern char * yytext;
 
   char* concatenate(int quantity, ...);
+
+  struct ExprMetadata {
+    char* text; /* keeps the expression body */
+    char* type;
+  };
+
+  int scope_count = 0;
+  int symbol_count = 1;
+  char* curr_decl_type;
+  
+  struct Symbol* temp_list[32];
+  int temp_list_index = -1;
+  
 %}
 
 %union {
@@ -17,6 +32,8 @@
 	char   cValue; 	/* char value */
 	char  *sValue;  /* string value */
   double dValue;  /* decimal value */
+  
+  struct ExprMetadata* mValue;
  };
 
 %start program
@@ -42,24 +59,34 @@
 
 %type<sValue> section decl type var_decls var_decl lit func func_params params param stmts stmt
               selection_stmt if else iteration_stmt while do_while escape assign arr_assign
-              arr_assign_content assign_stmt expr expr_atom func_call func_stmt exprs arr_access
+              arr_assign_content assign_stmt expr func_call func_stmt exprs arr_access
               op math_op rel_op logic_op print print_output
 
+%type<sValue> expr_atom
 
 %%
 
-program:        sections {}
+program:        sections { display(); }
                 ;
 
 sections:       section {}
                 | section sections {}
                 ;
 
-section:        decl { printf($$); }
-                | func { printf($$); }
+section:        decl { printf("%s", $$); }
+                | func { printf("%s", $$); }
                 ;
 
-decl:           type var_decls SC { $$ = concatenate(3, $1, $2, ";\n"); }
+decl:           type var_decls SC { 
+                  $$ = concatenate(3, $1, $2, ";\n");
+                  for (int i = 0; i <= temp_list_index; ++i) {
+                    temp_list[i]->type = $1;
+                    insert(symbol_count, temp_list[i]);
+                    symbol_count++;
+                  }
+
+                  temp_list_index = -1;
+                }
                 ;
 
 type:           INT { $$ = "INT"; }
@@ -79,8 +106,23 @@ var_decls:      var_decl { $$ = $1; }
                 | var_decl CMM var_decls { $$ = concatenate(3, $1, ",", $3); }
                 ;
 
-var_decl:       ID { $$ = $1; }
-                | assign { $$ = $1; }
+var_decl:       ID {
+                  $$ = $1;
+                  temp_list_index++;
+                  struct Symbol* symbol = malloc(sizeof(symbol));
+                  symbol->id = $1;
+                  symbol->scope = top();
+                  temp_list[temp_list_index] = symbol;
+                }
+                | ID ASSIGN expr { 
+                  $$ = $1;
+                  temp_list_index++;
+                  struct Symbol* symbol = malloc(sizeof(symbol));
+                  symbol->id = $1;
+                  symbol->scope = top();
+                  temp_list[temp_list_index] = symbol;
+                }
+                | arr_assign { $$ = $1; }
                 ;
 
 lit:            LIT_NUMBER { $$ = "LIT_NUMBER"; }
@@ -90,10 +132,21 @@ lit:            LIT_NUMBER { $$ = "LIT_NUMBER"; }
                 | LIT_BOOLEAN { $$ = "LIT_BOOLEAN"; }
                 ;
 
-func:           type ID LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE { $$ = concatenate(8, $1, $2, "(", $4, ")", "{\n", $7, "}\n"); }
+func:           type ID { 
+                  struct Symbol* symbol = malloc(sizeof(symbol));
+                  symbol->type = $1;
+                  symbol->id = $2;
+                  symbol->scope = top();
+                  insert(symbol_count, symbol);
+                  push(symbol_count);
+                  symbol_count++;
+                } LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE { 
+                  $$ = concatenate(8, $1, $2, "(", $5, ")", "{\n", $8, "}\n");
+                  pop();
+                }
                 ;
 
-func_params:    %empty { $$ = ""; }
+func_params:    { $$ = ""; }
                 | params { $$ = $1; }
                 | VOID { $$ = "VOID"; }
                 ;
@@ -102,7 +155,15 @@ params:         param { $$ = $1; }
                 | param CMM params { $$ = concatenate(3, $1, ",", $3); }
                 ;
 
-param:          type ID { $$ = concatenate(2, $1, $2); }
+param:          type ID { 
+                  $$ = concatenate(2, $1, $2);
+                  struct Symbol* symbol = malloc(sizeof(symbol));
+                  symbol->type = $1;
+                  symbol->id = $2;
+                  symbol->scope = top();
+                  insert(symbol_count, symbol);
+                  symbol_count++;
+                }
                 ;
 
 stmts:          stmt { $$ = $1; }
@@ -140,7 +201,14 @@ do_while:        DO LEFT_BRACE stmts RIGHT_BRACE WHILE LEFT_PAREN expr RIGHT_PAR
 
 escape:         BREAK SC { $$ = "BREAK;"; }
                 | EXIT SC { $$ = "EXIT;"; }
-                | RETURN expr SC { $$ = concatenate(3, "RETURN", $2, ";\n"); }
+                | RETURN expr SC { 
+                    $$ = concatenate(3, "RETURN", $2, ";\n");
+                    struct Symbol* symbol = malloc(sizeof(symbol));
+                    symbol->scope = top();
+                    symbol->return_stmt = 1;
+                    insert(symbol_count, symbol);
+                    symbol_count++;
+                  }
                 ;
 
 assign:         ID ASSIGN expr { $$ = concatenate(3, $1, "=", $3); }
@@ -148,8 +216,12 @@ assign:         ID ASSIGN expr { $$ = concatenate(3, $1, "=", $3); }
                 | arr_assign { $$ = $1; }
                 ;
 
-arr_assign:     ID ASSIGN LEFT_BRACKET arr_assign_content RIGHT_BRACKET { $$ = concatenate(5, $1, "=", "[", $4, "]"); }
-                | ID ASSIGN type LEFT_PAREN LIT_NUMBER RIGHT_PAREN { $$ = concatenate(6, $1, "=", $3, "(", "LIT_NUMBER", ")"); }
+arr_assign:     ID ASSIGN LEFT_BRACKET arr_assign_content RIGHT_BRACKET { 
+                  $$ = concatenate(5, $1, "=", "[", $4, "]"); 
+                }
+                | ID ASSIGN type LEFT_PAREN LIT_NUMBER RIGHT_PAREN { 
+                  $$ = concatenate(6, $1, "=", $3, "(", "LIT_NUMBER", ")"); 
+                }
                 ;
 
 arr_assign_content: expr { $$ = $1; }
@@ -161,14 +233,25 @@ assign_stmt:    assign SC { $$ = concatenate(2, $1, ";\n"); }
 
 expr:           expr_atom op expr { $$ = concatenate(3, $1, $2, $3); }
                 | NOT expr { $$ = concatenate(2, "!", $2); }
-                | expr_atom { $$ = $1; }
+                | expr_atom {  }
                 ; 
 
-expr_atom:      ID { $$ = $1; }
-                | lit { $$ = $1; }
-                | func_call { $$ = $1; }
-                | arr_access { $$ = $1; }
-                | LEFT_PAREN expr RIGHT_PAREN { $$ = concatenate(3, "(", $2, ")"); }
+expr_atom:      ID {
+                  $$ = $1;
+                  struct Symbol* symbol = lookup($1);
+                  if(symbol != NULL) {
+                    struct ExprMetadata* temp = malloc(sizeof(temp));
+                    temp->text = $1; 
+                    temp->type = symbol->type;
+                    //$$ = temp;
+                  } else {
+                    yyerror("unknown id");
+                  }
+                }
+                | lit {  }
+                | func_call {  }
+                | arr_access {  }
+                | LEFT_PAREN expr RIGHT_PAREN {  }
                 ;
 
 func_call:      ID LEFT_PAREN RIGHT_PAREN { $$ = concatenate(3, $1, "(", ")"); }
