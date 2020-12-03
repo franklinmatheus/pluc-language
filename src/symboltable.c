@@ -68,6 +68,16 @@ struct Symbol* new_symbol() {
     return symbol;
 }
 
+struct Symbol* lookup_in_scope(char* __id, int __scope) {
+    for(int i = 1; i < SIZE; ++i) {
+        if (hash_table[i] == NULL) break;
+            
+        if(strcmp(hash_table[i]->symbol->id, __id) == 0 && hash_table[i]->symbol->scope == __scope)
+            return hash_table[i]->symbol;
+    }
+    return NULL;
+}
+
 struct Symbol* lookup(char* __id) {
     unsigned short stop = 0;
     int scope = top();
@@ -86,6 +96,10 @@ struct Symbol* lookup(char* __id) {
     } while (stop == 0);
 
     return NULL;
+}
+
+struct Symbol* get(int __key) {
+    return hash_table[__key]->symbol;
 }
 
 void insert(int __key, struct Symbol* __symbol) {

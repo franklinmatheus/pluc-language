@@ -76,8 +76,14 @@ decl:           type var_decls SC {
                   $$ = concatenate(3, $1, $2, ";\n");
                   for (int i = 0; i <= temp_list_index; ++i) {
                     temp_list[i]->type = $1;
-                    insert(symbol_count, temp_list[i]);
-                    symbol_count++;
+                    if (lookup_in_scope(temp_list[i]->id, top()) == NULL) {
+                      insert(symbol_count, temp_list[i]);
+                      symbol_count++;  
+                    } else {
+                      char* temp = concatenate(2, temp_list[i]->id, " already declared in this scope");
+                      yyerror(temp);
+                      exit(0);
+                    }
                   }
 
                   temp_list_index = -1;
@@ -233,13 +239,21 @@ do_while:       DO LEFT_BRACE {
 
 escape:         BREAK SC { $$ = "BREAK;"; }
                 | EXIT SC { $$ = "EXIT;"; }
-                | RETURN expr SC { 
-                    $$ = concatenate(3, "RETURN", $2->text, ";\n");
-                    struct Symbol* symbol = new_symbol();
-                    symbol->scope = top();
-                    symbol->return_stmt = 1;
-                    insert(symbol_count, symbol);
-                    symbol_count++;
+                | RETURN expr SC {
+                    struct Symbol* symbol = get(top());
+
+                    if (compatible_types(symbol->type, $2->result_type) == 0) {
+                      $$ = concatenate(3, "RETURN", $2->text, ";\n");
+                      struct Symbol* symbol = new_symbol();
+                      symbol->scope = top();
+                      symbol->return_stmt = 1;
+                      insert(symbol_count, symbol);
+                      symbol_count++;
+                    } else {
+                      char* temp = concatenate(4, "uncompatible return type ", $2->result_type, " with ", symbol->type);
+                      yyerror(temp);
+                      exit(0);
+                    }
                   }
                 ;
 
@@ -409,7 +423,7 @@ int main (void) {
 }
 
 int yyerror (char *msg) {
-	fprintf (stderr, "%d: %s at '%s'\n", yylineno, msg, yytext);
+	fprintf (stderr, "line %d: %s at '%s'\n", yylineno, msg, yytext);
 	return 0;
 }
 
