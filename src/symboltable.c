@@ -8,8 +8,6 @@ struct Symbol {
     char* type; /* yacc constants */
     char* id;
     int scope; /* structure/func key */
-    
-    char* text;
 
     unsigned short return_stmt;
 };
@@ -29,7 +27,7 @@ struct HashItem* hash_table[SIZE];
  * pointer tells the last scope
  */
 int stack[CAPACITY];
-int pointer = 0;
+int pointer = 1;
 
 void push(int __key) {
     if (pointer < CAPACITY)
@@ -45,10 +43,16 @@ int top(void) {
 }
 
 int previous(int __key) {
-    for (int i = 1; i < pointer; ++i) 
+    for (int i = 0; i < pointer; ++i) 
         if (stack[i] == __key)
             return stack[i-1];
     return -1;
+}
+
+void print_stack() {
+    for (int i = 0; i < pointer; ++i) 
+        printf("%d", stack[i]);
+    printf(" ----- STACK\n");
 }
 
 int hash_code(int __key) {
@@ -60,7 +64,6 @@ struct Symbol* new_symbol() {
     symbol->type = "";
     symbol->id = "";
     symbol->scope = -1;
-    symbol->text = "";
     symbol->return_stmt = 0;
     return symbol;
 }
@@ -68,18 +71,19 @@ struct Symbol* new_symbol() {
 struct Symbol* lookup(char* __id) {
     unsigned short stop = 0;
     int scope = top();
+
     do {
         for(int i = 1; i < SIZE; ++i) {
             if (hash_table[i] == NULL) break;
             
-            if(strcmp(__id, hash_table[i]->symbol->id) == 0 && hash_table[i]->symbol->scope == scope) 
+            if(strcmp(__id, hash_table[i]->symbol->id) == 0 && hash_table[i]->symbol->scope == scope)
                 return hash_table[i]->symbol;
         }
         scope = previous(scope);
 
-        if(scope = -1) stop = 1;
+        if(scope == -1) stop = 1;
 
-    } while (stop = 0);
+    } while (stop == 0);
 
     return NULL;
 }

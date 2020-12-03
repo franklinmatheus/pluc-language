@@ -33,11 +33,8 @@ break                                                           return(BREAK);
 exit                                                            return(EXIT);
 
 void                                                            return(VOID);
-short                                                           return(SHORT);
 int                                                             return(INT);
-long                                                            return(LONG);
-float                                                           return(FLOAT);
-double                                                          return(DOUBLE);
+decimal                                                         return(DECIMAL);
 char                                                            return(CHAR);
 string                                                          return(STRING);
 bool                                                            return(BOOL);
@@ -72,8 +69,8 @@ set                                                             return (SET);
 
 [a-z][a-zA-Z0-9]*                                               { yylval.sValue = strdup(yytext); return ID; }
 
-[0-9]+                                                          { yylval.iValue = atoi(yytext); return LIT_NUMBER; }
-([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { yylval.iValue = atof(yytext); return LIT_DECIMAL; }
+[0-9]+                                                          { yylval.sValue = strdup(yytext); return LIT_NUMBER; }
+([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { yylval.sValue = strdup(yytext); return LIT_DECIMAL; }
 
 \n                                                              {yylineno++;}
 [ \t]+                                                          {  }

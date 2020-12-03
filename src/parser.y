@@ -13,6 +13,11 @@
 
   char* concatenate(int quantity, ...);
 
+  struct Metadata {
+    char* result_type;
+    char* text;
+  };
+
   int scope_count = 0;
   int symbol_count = 1;
   char* curr_decl_type;
@@ -23,25 +28,17 @@
 %}
 
 %union {
-  int    iValue; 	/* integer value */
-	char   cValue; 	/* char value */
 	char  *sValue;  /* string value */
-  double dValue;  /* decimal value */
   
-  struct Symbol* sblValue;
+  struct Metadata* mdValue;
  };
 
 %start program
 
-%token<sValue> ID
-%token<sValue> LIT_STRING
-%token<cValue> LIT_CHAR
-%token<sValue> LIT_BOOLEAN
-%token<iValue> LIT_NUMBER
-%token<dValue> LIT_DECIMAL 
+%token<sValue> ID LIT_STRING LIT_CHAR LIT_BOOLEAN LIT_NUMBER LIT_DECIMAL 
 
 %token PRINT
-%token VOID SHORT INT LONG FLOAT DOUBLE CHAR STRING BOOL ARRAY SET
+%token VOID INT DECIMAL CHAR STRING BOOL ARRAY SET
 %token IF ELSE WHILE DO
 %token RETURN BREAK EXIT
 %token SC CMM LEFT_PAREN RIGHT_PAREN LEFT_BRACKET RIGHT_BRACKET LEFT_BRACE RIGHT_BRACE
@@ -52,12 +49,15 @@
 %left	PLUS	MINUS
 %left	TIMES	DIV
 
-%type<sValue> section decl type var_decls var_decl lit func func_params params param stmts stmt
+%type<sValue> section decl type var_decls var_decl func func_params params param stmts stmt
               selection_stmt if else iteration_stmt while do_while escape assign arr_assign
-              arr_assign_content assign_stmt func_call func_stmt exprs arr_access
+              arr_assign_content assign_stmt func_stmt exprs arr_access
               op math_op rel_op logic_op print print_output
 
-%type<sblValue> expr_atom expr
+%type<mdValue> expr_atom expr lit func_call
+
+%nonassoc REDUCE
+%nonassoc ELSE
 
 %%
 
@@ -84,17 +84,14 @@ decl:           type var_decls SC {
                 }
                 ;
 
-type:           INT { $$ = "INT"; }
-                | FLOAT { $$ = "FLOAT"; }
-                | DOUBLE { $$ = "DOUBLE"; }
-                | CHAR { $$ = "CHAR"; }
-                | STRING { $$ = "STRING"; }
-                | BOOL { $$ = "BOOL"; }
-                | VOID { $$ = "VOID"; }
-                | SHORT { $$ = "SHORT"; }
-                | LONG { $$ = "LONG"; }
-                | SET type { $$ = concatenate(2, "SET", $2); }
-                | ARRAY type { $$ = concatenate(2, "ARRAY", $2); }
+type:           INT { $$ = "int"; }
+                | DECIMAL { $$ = "decimal"; }
+                | CHAR { $$ = "char"; }
+                | STRING { $$ = "string"; }
+                | BOOL { $$ = "bool"; }
+                | VOID { $$ = "void"; }
+                | SET type { $$ = concatenate(2, "set", $2); }
+                | ARRAY type { $$ = concatenate(2, "array", $2); }
                 ;
 
 var_decls:      var_decl { $$ = $1; }
@@ -120,14 +117,39 @@ var_decl:       ID {
                 | arr_assign { $$ = $1; }
                 ;
 
-lit:            LIT_NUMBER { $$ = "LIT_NUMBER"; }
-                | LIT_DECIMAL { $$ = "LIT_DECIMAL"; } 
-                | LIT_STRING { $$ = "LIT_STRING"; }
-                | LIT_CHAR { $$ = "LIT_CHAR"; }
-                | LIT_BOOLEAN { $$ = "LIT_BOOLEAN"; }
+lit:            LIT_NUMBER {  
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "int";
+                  metadata->text = $1;
+                  $$ = metadata;
+                }
+                | LIT_DECIMAL { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "decimal";
+                  metadata->text = $1;
+                  $$ = metadata;
+                } 
+                | LIT_STRING { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "string";
+                  metadata->text = $1;
+                  $$ = metadata;
+                }
+                | LIT_CHAR { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "char";
+                  metadata->text = $1;
+                  $$ = metadata;
+                }
+                | LIT_BOOLEAN { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "bool";
+                  metadata->text = $1;
+                  $$ = metadata;
+                }
                 ;
 
-func:           type ID { 
+func:           type ID {
                   struct Symbol* symbol = new_symbol();
                   symbol->type = $1;
                   symbol->id = $2;
@@ -135,7 +157,7 @@ func:           type ID {
                   insert(symbol_count, symbol);
                   push(symbol_count);
                   symbol_count++;
-                } LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE { 
+                } LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {
                   $$ = concatenate(8, $1, $2, "(", $5, ")", "{\n", $8, "}\n");
                   pop();
                 }
@@ -177,8 +199,13 @@ stmt:           selection_stmt { $$ = $1; }
 selection_stmt: if { $$ = $1; }
                 ;
 
-if:             IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE { $$ = concatenate(7, "IF", "(", $3, ")", "{\n", $6, "}\n"); }
-                | IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE else { $$ = concatenate(8, "IF", "(", $3, ")", "{\n", $6, "}\n", $8); }
+if:             IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE else { 
+                  //$$ = concatenate(8, "IF", "(", $3, ")", "{\n", $6, "}\n", $8); 
+                }
+                |
+                IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE { 
+                  //$$ = concatenate(7, "IF", "(", $3, ")", "{\n", $6, "}\n"); 
+                }
                 ;
 
 else:           ELSE LEFT_BRACE stmts RIGHT_BRACE { $$ = concatenate(4, "ELSE", "{\n", $3, "}\n"); }
@@ -188,10 +215,20 @@ iteration_stmt: while { $$ = $1; }
                 | do_while { $$ = $1; }
                 ;
 
-while:          WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE { $$ = concatenate(7, "WHILE", "(", $3->text, ")", "{\n", $6, "}\n"); }
+while:          WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE { 
+                  push(symbol_count);
+                  symbol_count++;
+                } stmts RIGHT_BRACE { 
+                  $$ = concatenate(7, "WHILE", "(", $3->text, ")", "{\n", $7, "}\n"); 
+                }
                 ;
 
-do_while:        DO LEFT_BRACE stmts RIGHT_BRACE WHILE LEFT_PAREN expr RIGHT_PAREN SC { $$ = concatenate(9, "DO", "{\n", $3, "}\n", "WHILE", "(", $7->text, ")", ";\n"); }
+do_while:       DO LEFT_BRACE {
+                  push(symbol_count);
+                  symbol_count++;
+                } stmts RIGHT_BRACE WHILE LEFT_PAREN expr RIGHT_PAREN SC { 
+                  $$ = concatenate(9, "DO", "{\n", $4, "}\n", "WHILE", "(", $8->text, ")", ";\n"); 
+                }
                 ;
 
 escape:         BREAK SC { $$ = "BREAK;"; }
@@ -227,28 +264,32 @@ assign_stmt:    assign SC { $$ = concatenate(2, $1, ";\n"); }
                 ;
 
 expr:           expr_atom op expr {
-                  char* temp = concatenate(3, $1->text, $2, $3->text);
-                  struct Symbol* symbol = new_symbol();
-                  symbol->text = temp;
-                  if (compatible_types($1->type, $3->type) == 0) {
-                    symbol->type = result_type($1->type, $3->type);
+                  if (compatible_types($1->result_type, $3->result_type) == 0) {
+                    // TODO TEXT TO C SIMPLIFIED
+                    char* temp = concatenate(3, $1->text, $2, $3->text);
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    metadata->text = temp;
+                    metadata->result_type = result_type($1->result_type, $3->result_type);
+                    $$ = metadata;
                   } else {
-                    char* temp = concatenate(4, "uncompatible types ", $1->type, " and ", $3->type);
+                    char* temp = concatenate(4, "uncompatible types ", $1->result_type, " and ", $3->result_type);
                     yyerror(temp);
+                    exit(0);
                   }
-                  $$ = symbol;
                 }
                 | NOT expr { 
-                  char* temp = concatenate(2, "!", $2->text);
-                  struct Symbol* symbol = new_symbol();
-                  symbol->text = temp;
-                  if (compatible_types($2->type, "bool") == 0) {
-                    symbol->type = $2->type;
+                  if (compatible_types($2->result_type, "bool") == 0) {
+                    // TODO TEXT TO C SIMPLIFIED
+                    char* temp = concatenate(2, "!", $2->text);
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    metadata->text = temp;
+                    metadata->result_type = $2->result_type;
+                    $$ = metadata;
                   } else {
-                    char* temp = concatenate(2, "cannot use ! operand with ", $2->type);
+                    char* temp = concatenate(2, "cannot use ! operand with ", $2->result_type);
                     yyerror(temp);
+                    exit(0);
                   }
-                  $$ = symbol;
                 }
                 | expr_atom {
                   $$ = $1;
@@ -257,31 +298,77 @@ expr:           expr_atom op expr {
 
 expr_atom:      ID {
                   struct Symbol* symbol = lookup($1);
+                  
                   if(symbol != NULL) {
-                    symbol->text = $1; 
-                    $$ = symbol;
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    metadata->text = $1;
+                    metadata->result_type = symbol->type;
+                    $$ = metadata;
                   } else {
                     yyerror("unknown id");
+                    exit(0);
                   }
                 }
-                | lit {  }
-                | func_call {  }
-                | arr_access {  }
-                | LEFT_PAREN expr RIGHT_PAREN {  }
+                | lit { 
+                  $$ = $1;
+                }
+                | func_call { 
+                  $$ = $1;
+                }
+                | arr_access {  
+
+                }
+                | LEFT_PAREN expr RIGHT_PAREN {  
+                  $2->text = concatenate(3, "(", $2->text, ")");
+                  $$ = $2;
+                }
                 ;
 
-func_call:      ID LEFT_PAREN RIGHT_PAREN { $$ = concatenate(3, $1, "(", ")"); }
-                | ID LEFT_PAREN exprs RIGHT_PAREN { $$ = concatenate(4, $1, "(", $3, ")"); }
+func_call:      ID LEFT_PAREN RIGHT_PAREN { 
+                  struct Symbol* symbol = lookup($1);
+                  
+                  if (symbol != NULL) {
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    metadata->result_type = symbol->type;
+
+                    // TODO TEXT TO C SIMPLIFIED
+                    char* temp = concatenate(3, $1, "(", ")");
+                    metadata->text = temp;
+                    $$ = metadata;
+                  } else {
+                    char* temp = concatenate(3, "function ", $1 , " not found");
+                    yyerror(temp);
+                    exit(0);
+                  }
+                }
+                | ID LEFT_PAREN exprs RIGHT_PAREN { 
+                  struct Symbol* symbol = lookup($1);
+                  
+                  if (symbol != NULL) {
+                    // TODO CHECK PARAMS
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    metadata->result_type = symbol->type;
+
+                    // TODO TEXT TO C SIMPLIFIED
+                    char* temp = concatenate(4, $1, "(", $3, ")");
+                    metadata->text = temp;
+                    $$ = metadata;
+                  } else {
+                    char* temp = concatenate(3, "function ", $1 , " not found");
+                    yyerror(temp);
+                    exit(0);
+                  }
+                }
                 ;
 
-func_stmt:      func_call SC { $$ = concatenate(2, $1, ";\n"); }
+func_stmt:      func_call SC { $$ = concatenate(2, $1->text, ";\n"); }
                 ;
 
 exprs:          expr { $$ = $1->text; }
                 | expr CMM exprs { $$ = concatenate(3, $1->text, ",", $3); }
                 ;
 
-arr_access:      ID LEFT_BRACKET expr RIGHT_BRACKET { $$ = concatenate(4, $1, "[", $3->text, "]"); }
+arr_access:     ID LEFT_BRACKET expr RIGHT_BRACKET { $$ = concatenate(4, $1, "[", $3->text, "]"); }
                 ;
 
 op:             math_op { $$ = $1; }
@@ -310,9 +397,9 @@ logic_op:       AND { $$ = "&&"; }
 print:          PRINT LEFT_PAREN print_output RIGHT_PAREN SC { $$ = concatenate(5, "PRINT", "(", $3, ")", ";\n"); }
                 ;
 
-print_output:   lit { $$ = $1; }
+print_output:   lit { $$ = $1->text; }
                 | ID { $$ = $1; }
-                | lit PLUS print_output { $$ = concatenate(3, $1, "+", $3); }
+                | lit PLUS print_output { $$ = concatenate(3, $1->text, "+", $3); }
                 ;
 
 %%

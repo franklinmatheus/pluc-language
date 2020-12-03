@@ -1,5 +1,13 @@
+char a;
+
+int func() {
+    return 0;
+}
+
 int main() {
     int a = 0;
+    decimal c = 1;
+    func();
     bool b = true;
-    return !a;
+    return a + 1;
 }
