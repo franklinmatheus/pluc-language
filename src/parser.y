@@ -156,13 +156,19 @@ lit:            LIT_NUMBER {
                 ;
 
 func:           type ID {
-                  struct Symbol* symbol = new_symbol();
-                  symbol->type = $1;
-                  symbol->id = $2;
-                  symbol->scope = top();
-                  insert(symbol_count, symbol);
-                  push(symbol_count);
-                  symbol_count++;
+                  if (lookup_in_scope($2, top()) == NULL) {
+                    struct Symbol* symbol = new_symbol();
+                    symbol->type = $1;
+                    symbol->id = $2;
+                    symbol->scope = top();
+                    insert(symbol_count, symbol);
+                    push(symbol_count);
+                    symbol_count++;
+                  } else {
+                    char* temp = concatenate(2, $2, " already declared in this scope");
+                    yyerror(temp);
+                    exit(0);
+                  }
                 } LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {
                   $$ = concatenate(8, $1, $2, "(", $5, ")", "{\n", $8, "}\n");
                   pop();
