@@ -211,56 +211,105 @@ stmt:           selection_stmt { $$ = $1; }
 selection_stmt: if { $$ = $1; }
                 ;
 
-if:             IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE else { 
-                  //$$ = concatenate(8, "IF", "(", $3, ")", "{\n", $6, "}\n", $8); 
+if:             IF LEFT_PAREN expr { 
+                  if (compatible_types($3->result_type, "bool") != 0) {
+                    yyerror("if expression must be a condition (bool value)");
+                    exit(0);
+                  }
+                } RIGHT_PAREN LEFT_BRACE { 
+                  struct Symbol* symbol = new_symbol();
+                  symbol->id = "if";
+                  symbol->scope = top();
+                  insert(symbol_count, symbol);
+                  push(symbol_count);
+                  symbol_count++;
+                } stmts RIGHT_BRACE {
+                  pop();
                 }
-                |
-                IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE { 
-                  //$$ = concatenate(7, "IF", "(", $3, ")", "{\n", $6, "}\n"); 
+                else { 
+                  $$ = concatenate(8, "IF", "(", $3->text, ")", "{\n", $8, "}\n", $11); 
                 }
                 ;
 
-else:           ELSE LEFT_BRACE stmts RIGHT_BRACE { $$ = concatenate(4, "ELSE", "{\n", $3, "}\n"); }
+else:           {} 
+                | ELSE LEFT_BRACE {
+                  struct Symbol* symbol = new_symbol();
+                  symbol->id = "else";
+                  symbol->scope = top();
+                  insert(symbol_count, symbol);
+                  push(symbol_count);
+                  symbol_count++;
+                } 
+                stmts RIGHT_BRACE { 
+                  pop();
+                  $$ = concatenate(4, "ELSE", "{\n", $4, "}\n"); 
+                }
                 ;
 
 iteration_stmt: while { $$ = $1; }
                 | do_while { $$ = $1; }
                 ;
 
-while:          WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE { 
+while:          WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE {
+                  if (compatible_types($3->result_type, "bool") != 0) {
+                    yyerror("while expression must be a condition (bool value)");
+                    exit(0);
+                  }
                   push(symbol_count);
                   symbol_count++;
                 } stmts RIGHT_BRACE { 
-                  $$ = concatenate(7, "WHILE", "(", $3->text, ")", "{\n", $7, "}\n"); 
+                  $$ = concatenate(7, "WHILE", "(", $3->text, ")", "{\n", $7, "}\n");
+                  pop();
                 }
                 ;
 
 do_while:       DO LEFT_BRACE {
                   push(symbol_count);
                   symbol_count++;
-                } stmts RIGHT_BRACE WHILE LEFT_PAREN expr RIGHT_PAREN SC { 
+                } stmts RIGHT_BRACE WHILE LEFT_PAREN expr RIGHT_PAREN SC {
+                  if (compatible_types($8->result_type, "bool") != 0) {
+                    yyerror("do-while expression must be a condition (bool value)");
+                    exit(0);
+                  }
                   $$ = concatenate(9, "DO", "{\n", $4, "}\n", "WHILE", "(", $8->text, ")", ";\n"); 
+                  pop();
                 }
                 ;
 
 escape:         BREAK SC { $$ = "BREAK;"; }
                 | EXIT SC { $$ = "EXIT;"; }
                 | RETURN expr SC {
-                    struct Symbol* symbol = get(top());
+                  struct Symbol* symbol = get(top());
 
-                    if (compatible_types(symbol->type, $2->result_type) == 0) {
-                      $$ = concatenate(3, "RETURN", $2->text, ";\n");
-                      struct Symbol* symbol = new_symbol();
-                      symbol->scope = top();
-                      symbol->return_stmt = 1;
-                      insert(symbol_count, symbol);
-                      symbol_count++;
-                    } else {
-                      char* temp = concatenate(4, "uncompatible return type ", $2->result_type, " with ", symbol->type);
-                      yyerror(temp);
-                      exit(0);
-                    }
+                  if (compatible_types(symbol->type, $2->result_type) == 0) {
+                    $$ = concatenate(3, "RETURN", $2->text, ";\n");
+                    struct Symbol* symbol = new_symbol();
+                    symbol->scope = top();
+                    symbol->return_stmt = 1;
+                    insert(symbol_count, symbol);
+                    symbol_count++;
+                  } else {
+                    char* temp = concatenate(4, "uncompatible return type ", $2->result_type, " with ", symbol->type);
+                    yyerror(temp);
+                    exit(0);
                   }
+                }
+                | RETURN SC {
+                  struct Symbol* symbol = get(top());
+
+                  if (compatible_types(symbol->type, "void") == 0) {
+                    $$ = concatenate(2, "RETURN", ";\n");
+                    struct Symbol* symbol = new_symbol();
+                    symbol->scope = top();
+                    symbol->return_stmt = 1;
+                    insert(symbol_count, symbol);
+                    symbol_count++;
+                  } else {
+                    char* temp = concatenate(2, "uncompatible return type void with ", symbol->type);
+                    yyerror(temp);
+                    exit(0);
+                  }
+                }
                 ;
 
 assign:         ID ASSIGN expr { $$ = concatenate(3, $1, "=", $3->text); }
@@ -402,7 +451,7 @@ math_op:        PLUS { $$ = "+"; }
                 | DIV { $$ = "/"; }
                 ;
 
-rel_op:        EQQ { $$ = "=="; }
+rel_op:         EQQ { $$ = "=="; }
                 | DIFF { $$ = "!="; }
                 | LESS_EQ { $$ = "<="; }
                 | LESS { $$ = "<"; }

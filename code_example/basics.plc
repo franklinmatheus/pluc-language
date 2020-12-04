@@ -1,13 +1,19 @@
 char a;
 
-int func() {
-    return 0;
+void func() {
+    return;
 }
 
 int main() {
+    if (true) {
+        bool x;
+        if(x) {
+            x = false;
+        }
+    } else {
+        func();
+    }
     int a = 0;
-    decimal c = 1;
-    func();
-    bool b = true;
-    return a;
+
+    return 1;
 }
