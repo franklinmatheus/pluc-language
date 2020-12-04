@@ -1,5 +1,6 @@
 char a;
 
+
 void func() {
     return;
 }
@@ -7,13 +8,15 @@ void func() {
 int main() {
     if (true) {
         bool x;
-        if(x) {
-            x = false;
+        if(false) { 
+            print("a"); 
         }
     } else {
         func();
+        
     }
-    int a = 0;
-
-    return 1;
+    array int a = [1,2,3], c;
+    int b;
+    a[2] = 1;
+    return 1 + 1;
 }

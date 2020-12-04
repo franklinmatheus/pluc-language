@@ -13,9 +13,15 @@
 
   char* concatenate(int quantity, ...);
 
-  struct Metadata {
+  struct MetadataExpr {
     char* result_type;
     char* text;
+  };
+
+  struct MetadataArr {
+    char* result_type;
+    char* text;
+    char* id;
   };
 
   int scope_count = 0;
@@ -30,7 +36,8 @@
 %union {
 	char  *sValue;  /* string value */
   
-  struct Metadata* mdValue;
+  struct MetadataExpr* mdValue;
+  struct MetadataArr* mrrValue;
  };
 
 %start program
@@ -50,11 +57,12 @@
 %left	TIMES	DIV
 
 %type<sValue> section decl type var_decls var_decl func func_params params param stmts stmt
-              selection_stmt if else iteration_stmt while do_while escape assign arr_assign
-              arr_assign_content assign_stmt func_stmt exprs arr_access
+              selection_stmt if else iteration_stmt while do_while escape assign
+              assign_stmt func_stmt exprs
               op math_op rel_op logic_op print print_output
 
-%type<mdValue> expr_atom expr lit func_call
+%type<mdValue> expr_atom expr lit func_call arr_assign_content 
+%type<mrrValue> arr_assign arr_access
 
 %nonassoc REDUCE
 %nonassoc ELSE
@@ -120,35 +128,42 @@ var_decl:       ID {
                   symbol->scope = top();
                   temp_list[temp_list_index] = symbol;
                 }
-                | arr_assign { $$ = $1; }
+                | arr_assign { 
+                  $$ = $1->text;
+                  temp_list_index++;
+                  struct Symbol* symbol = new_symbol();
+                  symbol->id = $1->id;
+                  symbol->scope = top();
+                  temp_list[temp_list_index] = symbol;
+                }
                 ;
 
 lit:            LIT_NUMBER {  
-                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
                   metadata->result_type = "int";
                   metadata->text = $1;
                   $$ = metadata;
                 }
                 | LIT_DECIMAL { 
-                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
                   metadata->result_type = "decimal";
                   metadata->text = $1;
                   $$ = metadata;
                 } 
                 | LIT_STRING { 
-                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
                   metadata->result_type = "string";
                   metadata->text = $1;
                   $$ = metadata;
                 }
                 | LIT_CHAR { 
-                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
                   metadata->result_type = "char";
                   metadata->text = $1;
                   $$ = metadata;
                 }
                 | LIT_BOOLEAN { 
-                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
                   metadata->result_type = "bool";
                   metadata->text = $1;
                   $$ = metadata;
@@ -312,21 +327,94 @@ escape:         BREAK SC { $$ = "BREAK;"; }
                 }
                 ;
 
-assign:         ID ASSIGN expr { $$ = concatenate(3, $1, "=", $3->text); }
-                | arr_access ASSIGN expr { $$ = concatenate(3, $1, "=", $3->text); }
-                | arr_assign { $$ = $1; }
+assign:         ID ASSIGN expr { 
+                  struct Symbol* symbol = lookup($1);
+
+                  if (symbol == NULL) {
+                    yyerror("array id was not found");
+                    free($3);
+                    exit(0);
+                  } else {
+                    if(compatible_types(symbol->type, $3->result_type) == 0) {
+                      $$ = concatenate(3, $1, "=", $3->text);
+                    } else {
+                      yyerror("variable type does not correspond to assigned expression");
+                      free($3);
+                      exit(0);
+                    }
+                  } 
+                }
+                | arr_access ASSIGN expr { 
+                  struct Symbol* symbol = lookup($1->id);
+
+                  if (symbol == NULL) {
+                    yyerror("array id was not found");
+                    free($1);
+                    exit(0);
+                  } else {
+                    if(compatible_types(symbol->type, concatenate(2,"array", $3->result_type)) == 0) {
+                      $$ = concatenate(3, $1->text, "=", $3->text);
+                    } else {
+                      yyerror("array type does not correspond to assigned literal");
+                      free($1);
+                      exit(0);
+                    }
+                  }
+                }
+                | arr_assign { 
+                  struct Symbol* symbol = lookup($1->id);
+
+                  if (symbol == NULL) {
+                    yyerror("array id was not found");
+                    free($1);
+                    exit(0);
+                  } else {
+                    if(compatible_types(symbol->type, $1->result_type) == 0) {
+                      $$ = $1->text;
+                    } else {
+                      yyerror("array type does not correspond to assigned literal");
+                      free($1);
+                      exit(0);
+                    }
+                  }
+                }
                 ;
 
 arr_assign:     ID ASSIGN LEFT_BRACKET arr_assign_content RIGHT_BRACKET {
-                  $$ = concatenate(5, $1, "=", "[", $4, "]"); 
+                  struct MetadataArr* metadata = (struct MetadataArr*) malloc(sizeof(struct MetadataArr));
+                  metadata->id = $1;
+                  metadata->result_type = concatenate(2, "array", $4->result_type);
+                  metadata->text = concatenate(5, $1, "=", "[", $4->text, "]");
+                  $$ = metadata;
+                  free($4);
                 }
-                | ID ASSIGN type LEFT_PAREN LIT_NUMBER RIGHT_PAREN { 
-                  $$ = concatenate(6, $1, "=", $3, "(", "LIT_NUMBER", ")"); 
+                | ID ASSIGN type LEFT_PAREN LIT_NUMBER RIGHT_PAREN {
+                  struct MetadataArr* metadata = (struct MetadataArr*) malloc(sizeof(struct MetadataArr));
+                  metadata->id = $1;
+                  metadata->result_type = concatenate(2, "array", $3);
+                  metadata->text = concatenate(6, $1, "=", $3, "(", $5, ")");
+                  $$ = metadata;
                 }
                 ;
 
-arr_assign_content: expr { $$ = $1->text; }
-                    | expr CMM arr_assign_content { $$ = concatenate(3, $1->text, ",", $3); }
+arr_assign_content: expr { 
+                      $$ = $1; 
+                    }
+                    | expr CMM arr_assign_content { 
+                      if (compatible_types($1->result_type, $3->result_type) == 0) {
+                        struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                        metadata->text = concatenate(3, $1->text, ",", $3->text);
+                        metadata->result_type = $1->result_type;
+                        $$ = metadata;
+                        free($1);
+                        free($3);
+                      } else {
+                        yyerror("uncompatible types in array assign");
+                        free($1);
+                        free($3);
+                        exit(0);
+                      }
+                    }
                     ;
 
 assign_stmt:    assign SC { $$ = concatenate(2, $1, ";\n"); }
@@ -336,13 +424,17 @@ expr:           expr_atom op expr {
                   if (compatible_types($1->result_type, $3->result_type) == 0) {
                     // TODO TEXT TO C SIMPLIFIED
                     char* temp = concatenate(3, $1->text, $2, $3->text);
-                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
                     metadata->text = temp;
                     metadata->result_type = result_type($1->result_type, $3->result_type);
                     $$ = metadata;
+                    free($1);
+                    free($3);
                   } else {
                     char* temp = concatenate(4, "uncompatible types ", $1->result_type, " and ", $3->result_type);
                     yyerror(temp);
+                    free($1);
+                    free($3);
                     exit(0);
                   }
                 }
@@ -350,13 +442,15 @@ expr:           expr_atom op expr {
                   if (compatible_types($2->result_type, "bool") == 0) {
                     // TODO TEXT TO C SIMPLIFIED
                     char* temp = concatenate(2, "!", $2->text);
-                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
                     metadata->text = temp;
                     metadata->result_type = $2->result_type;
                     $$ = metadata;
+                    free($2);
                   } else {
                     char* temp = concatenate(2, "cannot use ! operand with ", $2->result_type);
                     yyerror(temp);
+                    free($2);
                     exit(0);
                   }
                 }
@@ -369,7 +463,7 @@ expr_atom:      ID {
                   struct Symbol* symbol = lookup($1);
                   
                   if(symbol != NULL) {
-                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
                     metadata->text = $1;
                     metadata->result_type = symbol->type;
                     $$ = metadata;
@@ -385,7 +479,7 @@ expr_atom:      ID {
                   $$ = $1;
                 }
                 | arr_access {  
-
+                  // TODO
                 }
                 | LEFT_PAREN expr RIGHT_PAREN {  
                   $2->text = concatenate(3, "(", $2->text, ")");
@@ -397,7 +491,7 @@ func_call:      ID LEFT_PAREN RIGHT_PAREN {
                   struct Symbol* symbol = lookup($1);
                   
                   if (symbol != NULL) {
-                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
                     metadata->result_type = symbol->type;
 
                     // TODO TEXT TO C SIMPLIFIED
@@ -415,7 +509,7 @@ func_call:      ID LEFT_PAREN RIGHT_PAREN {
                   
                   if (symbol != NULL) {
                     // TODO CHECK PARAMS
-                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
                     metadata->result_type = symbol->type;
 
                     // TODO TEXT TO C SIMPLIFIED
@@ -437,7 +531,20 @@ exprs:          expr { $$ = $1->text; }
                 | expr CMM exprs { $$ = concatenate(3, $1->text, ",", $3); }
                 ;
 
-arr_access:     ID LEFT_BRACKET expr RIGHT_BRACKET { $$ = concatenate(4, $1, "[", $3->text, "]"); }
+arr_access:     ID LEFT_BRACKET expr RIGHT_BRACKET {
+                  if (compatible_types($3->result_type, "int") == 0) {
+                    struct MetadataArr* metadata = (struct MetadataArr*) malloc(sizeof(struct MetadataArr));
+                    metadata->id = $1;
+                    metadata->text = concatenate(4, $1, "[", $3->text, "]");
+                    $$ = metadata;
+                    free($3);
+                  } else {
+                    yyerror("array access must be an integer expression");
+                    free($3);
+                    exit(0);
+                  }
+                  
+                }
                 ;
 
 op:             math_op { $$ = $1; }
