@@ -4,32 +4,52 @@
   #include <string.h>
   #include <stdarg.h>
 
+  #include "symboltable.c"
+
   int yylex();
   int yyerror(char *s);
   extern int yylineno;
   extern char * yytext;
 
   char* concatenate(int quantity, ...);
+
+  struct Metadata {
+    char* result_type;
+    char* text;
+  };
+
+  struct MetadataArr {
+    char* result_type;
+    char* text;
+    char* id;
+  };
+
+  int scope_count = 0;
+  int symbol_count = 1;
+  char* curr_decl_type;
+  
+  struct Symbol* temp_list[32];
+
+  struct Symbol* curr_call_func;
+  int curr_param_func = 0;
+
+  int temp_list_index = -1;
+  
 %}
 
 %union {
-  int    iValue; 	/* integer value */
-	char   cValue; 	/* char value */
 	char  *sValue;  /* string value */
-  double dValue;  /* decimal value */
+  
+  struct Metadata* mdValue;
+  struct MetadataArr* mrrValue;
  };
 
 %start program
 
-%token<sValue> ID
-%token<sValue> LIT_STRING
-%token<cValue> LIT_CHAR
-%token<sValue> LIT_BOOLEAN
-%token<iValue> LIT_NUMBER
-%token<dValue> LIT_DECIMAL 
+%token<sValue> ID LIT_STRING LIT_CHAR LIT_BOOLEAN LIT_NUMBER LIT_DECIMAL 
 
-%token PRINT
-%token VOID SHORT INT LONG FLOAT DOUBLE CHAR STRING BOOL ARRAY SET
+%token READ PRINT
+%token VOID INT DECIMAL CHAR STRING BOOL ARRAY SET
 %token IF ELSE WHILE DO
 %token RETURN BREAK EXIT
 %token SC CMM LEFT_PAREN RIGHT_PAREN LEFT_BRACKET RIGHT_BRACKET LEFT_BRACE RIGHT_BRACE
@@ -40,60 +60,141 @@
 %left	PLUS	MINUS
 %left	TIMES	DIV
 
-%type<sValue> section decl type var_decls var_decl lit func func_params params param stmts stmt
-              selection_stmt if else iteration_stmt while do_while escape assign arr_assign
-              arr_assign_content assign_stmt expr expr_atom func_call func_stmt exprs arr_access
-              op math_op rel_op logic_op print print_output
+%type<sValue> section decl type var_decls var_decl func func_params params param stmts stmt
+              selection_stmt if else iteration_stmt while do_while escape assign
+              assign_stmt func_stmt exprs
+              math_op rel_op logic_op print
 
+%type<mdValue> expr_atom expr lit func_call arr_assign_content read print_output op
+%type<mrrValue> arr_assign arr_access
+
+%nonassoc REDUCE
+%nonassoc ELSE
 
 %%
 
-program:        sections {}
+program:        sections { }
                 ;
 
 sections:       section {}
                 | section sections {}
                 ;
 
-section:        decl { printf($$); }
-                | func { printf($$); }
+section:        decl { printf("%s", $$); }
+                | func { printf("%s", $$); }
                 ;
 
-decl:           type var_decls SC { $$ = concatenate(3, $1, $2, ";\n"); }
+decl:           type var_decls SC { 
+                  $$ = concatenate(3, $1, $2, ";\n");
+                  for (int i = 0; i <= temp_list_index; ++i) {
+                    temp_list[i]->type = $1;
+                    if (lookup_in_scope(temp_list[i]->id, top()) == NULL) {
+                      insert(symbol_count, temp_list[i]);
+                      symbol_count++;  
+                    } else {
+                      char* temp = concatenate(2, temp_list[i]->id, " already declared in this scope");
+                      yyerror(temp);
+                      exit(0);
+                    }
+                  }
+
+                  temp_list_index = -1;
+                }
                 ;
 
-type:           INT { $$ = "INT"; }
-                | FLOAT { $$ = "FLOAT"; }
-                | DOUBLE { $$ = "DOUBLE"; }
-                | CHAR { $$ = "CHAR"; }
-                | STRING { $$ = "STRING"; }
-                | BOOL { $$ = "BOOL"; }
-                | VOID { $$ = "VOID"; }
-                | SHORT { $$ = "SHORT"; }
-                | LONG { $$ = "LONG"; }
-                | SET type { $$ = concatenate(2, "SET", $2); }
-                | ARRAY type { $$ = concatenate(2, "ARRAY", $2); }
+type:           INT { $$ = "int"; }
+                | DECIMAL { $$ = "decimal"; }
+                | CHAR { $$ = "char"; }
+                | STRING { $$ = "string"; }
+                | BOOL { $$ = "bool"; }
+                | VOID { $$ = "void"; }
+                | SET type { $$ = concatenate(2, "set", $2); }
+                | ARRAY type { $$ = concatenate(2, "array", $2); }
                 ;
 
 var_decls:      var_decl { $$ = $1; }
                 | var_decl CMM var_decls { $$ = concatenate(3, $1, ",", $3); }
                 ;
 
-var_decl:       ID { $$ = $1; }
-                | assign { $$ = $1; }
+var_decl:       ID {
+                  $$ = $1;
+                  temp_list_index++;
+                  struct Symbol* symbol = new_symbol();
+                  symbol->id = $1;
+                  symbol->scope = top();
+                  temp_list[temp_list_index] = symbol;
+                }
+                | ID ASSIGN expr { 
+                  $$ = $1;
+                  temp_list_index++;
+                  struct Symbol* symbol = new_symbol();
+                  symbol->id = $1;
+                  symbol->scope = top();
+                  temp_list[temp_list_index] = symbol;
+                }
+                | arr_assign { 
+                  $$ = $1->text;
+                  temp_list_index++;
+                  struct Symbol* symbol = new_symbol();
+                  symbol->id = $1->id;
+                  symbol->scope = top();
+                  temp_list[temp_list_index] = symbol;
+                }
                 ;
 
-lit:            LIT_NUMBER { $$ = "LIT_NUMBER"; }
-                | LIT_DECIMAL { $$ = "LIT_DECIMAL"; } 
-                | LIT_STRING { $$ = "LIT_STRING"; }
-                | LIT_CHAR { $$ = "LIT_CHAR"; }
-                | LIT_BOOLEAN { $$ = "LIT_BOOLEAN"; }
+lit:            LIT_NUMBER {  
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "int";
+                  metadata->text = $1;
+                  $$ = metadata;
+                }
+                | LIT_DECIMAL { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "decimal";
+                  metadata->text = $1;
+                  $$ = metadata;
+                } 
+                | LIT_STRING { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "string";
+                  metadata->text = $1;
+                  $$ = metadata;
+                }
+                | LIT_CHAR { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "char";
+                  metadata->text = $1;
+                  $$ = metadata;
+                }
+                | LIT_BOOLEAN { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "bool";
+                  metadata->text = $1;
+                  $$ = metadata;
+                }
                 ;
 
-func:           type ID LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE { $$ = concatenate(8, $1, $2, "(", $4, ")", "{\n", $7, "}\n"); }
+func:           type ID {
+                  if (lookup_in_scope($2, top()) == NULL) {
+                    struct Symbol* symbol = new_symbol();
+                    symbol->type = $1;
+                    symbol->id = $2;
+                    symbol->scope = top();
+                    insert(symbol_count, symbol);
+                    push(symbol_count);
+                    symbol_count++;
+                  } else {
+                    char* temp = concatenate(2, $2, " already declared in this scope");
+                    yyerror(temp);
+                    exit(0);
+                  }
+                } LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {
+                  $$ = concatenate(8, $1, $2, "(", $5, ")", "{\n", $8, "}\n");
+                  pop();
+                }
                 ;
 
-func_params:    %empty { $$ = ""; }
+func_params:    { $$ = ""; }
                 | params { $$ = $1; }
                 | VOID { $$ = "VOID"; }
                 ;
@@ -102,7 +203,17 @@ params:         param { $$ = $1; }
                 | param CMM params { $$ = concatenate(3, $1, ",", $3); }
                 ;
 
-param:          type ID { $$ = concatenate(2, $1, $2); }
+param:          type ID { 
+                  $$ = concatenate(2, $1, $2);
+                  struct Symbol* symbol = new_symbol();
+                  symbol->type = $1;
+                  symbol->id = $2;
+                  symbol->scope = top();
+                  insert_func_param(top(), $1);
+
+                  insert(symbol_count, symbol);
+                  symbol_count++;
+                }
                 ;
 
 stmts:          stmt { $$ = $1; }
@@ -121,73 +232,409 @@ stmt:           selection_stmt { $$ = $1; }
 selection_stmt: if { $$ = $1; }
                 ;
 
-if:             IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE { $$ = concatenate(7, "IF", "(", $3, ")", "{\n", $6, "}\n"); }
-                | IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE else { $$ = concatenate(8, "IF", "(", $3, ")", "{\n", $6, "}\n", $8); }
+if:             IF LEFT_PAREN expr { 
+                  if (compatible_types($3->result_type, "bool") != 0) {
+                    yyerror("if expression must be a condition (bool value)");
+                    exit(0);
+                  }
+                } RIGHT_PAREN LEFT_BRACE { 
+                  struct Symbol* symbol = new_symbol();
+                  symbol->id = "if";
+                  symbol->scope = top();
+                  insert(symbol_count, symbol);
+                  push(symbol_count);
+                  symbol_count++;
+                } stmts RIGHT_BRACE {
+                  pop();
+                }
+                else { 
+                  $$ = concatenate(8, "IF", "(", $3->text, ")", "{\n", $8, "}\n", $11); 
+                }
                 ;
 
-else:           ELSE LEFT_BRACE stmts RIGHT_BRACE { $$ = concatenate(4, "ELSE", "{\n", $3, "}\n"); }
+else:           {} 
+                | ELSE LEFT_BRACE {
+                  struct Symbol* symbol = new_symbol();
+                  symbol->id = "else";
+                  symbol->scope = top();
+                  insert(symbol_count, symbol);
+                  push(symbol_count);
+                  symbol_count++;
+                } 
+                stmts RIGHT_BRACE { 
+                  pop();
+                  $$ = concatenate(4, "ELSE", "{\n", $4, "}\n"); 
+                }
                 ;
 
 iteration_stmt: while { $$ = $1; }
                 | do_while { $$ = $1; }
                 ;
 
-while:          WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE { $$ = concatenate(7, "WHILE", "(", $3, ")", "{\n", $6, "}\n"); }
+while:          WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE {
+                  if (compatible_types($3->result_type, "bool") != 0) {
+                    yyerror("while expression must be a condition (bool value)");
+                    exit(0);
+                  }
+                  push(symbol_count);
+                  symbol_count++;
+                } stmts RIGHT_BRACE { 
+                  $$ = concatenate(7, "WHILE", "(", $3->text, ")", "{\n", $7, "}\n");
+                  pop();
+                }
                 ;
 
-do_while:        DO LEFT_BRACE stmts RIGHT_BRACE WHILE LEFT_PAREN expr RIGHT_PAREN SC { $$ = concatenate(9, "DO", "{\n", $3, "}\n", "WHILE", "(", $7, ")", ";\n"); }
+do_while:       DO LEFT_BRACE {
+                  push(symbol_count);
+                  symbol_count++;
+                } stmts RIGHT_BRACE WHILE LEFT_PAREN expr RIGHT_PAREN SC {
+                  if (compatible_types($8->result_type, "bool") != 0) {
+                    yyerror("do-while expression must be a condition (bool value)");
+                    exit(0);
+                  }
+                  $$ = concatenate(9, "DO", "{\n", $4, "}\n", "WHILE", "(", $8->text, ")", ";\n"); 
+                  pop();
+                }
                 ;
 
 escape:         BREAK SC { $$ = "BREAK;"; }
                 | EXIT SC { $$ = "EXIT;"; }
-                | RETURN expr SC { $$ = concatenate(3, "RETURN", $2, ";\n"); }
+                | RETURN expr SC {
+                  struct Symbol* symbol = get(top());
+
+                  if (compatible_types(symbol->type, $2->result_type) == 0) {
+                    $$ = concatenate(3, "RETURN", $2->text, ";\n");
+                    struct Symbol* symbol = new_symbol();
+                    symbol->scope = top();
+                    symbol->return_stmt = 1;
+                    insert(symbol_count, symbol);
+                    symbol_count++;
+                  } else {
+                    char* temp = concatenate(4, "uncompatible return type ", $2->result_type, " with ", symbol->type);
+                    yyerror(temp);
+                    exit(0);
+                  }
+                }
+                | RETURN SC {
+                  struct Symbol* symbol = get(top());
+
+                  if (compatible_types(symbol->type, "void") == 0) {
+                    $$ = concatenate(2, "RETURN", ";\n");
+                    struct Symbol* symbol = new_symbol();
+                    symbol->scope = top();
+                    symbol->return_stmt = 1;
+                    insert(symbol_count, symbol);
+                    symbol_count++;
+                  } else {
+                    char* temp = concatenate(2, "uncompatible return type void with ", symbol->type);
+                    yyerror(temp);
+                    exit(0);
+                  }
+                }
                 ;
 
-assign:         ID ASSIGN expr { $$ = concatenate(3, $1, "=", $3); }
-                | arr_access ASSIGN expr { $$ = concatenate(3, $1, "=", $3); }
-                | arr_assign { $$ = $1; }
+assign:         ID ASSIGN expr { 
+                  struct Symbol* symbol = lookup($1);
+
+                  if (symbol == NULL) {
+                    yyerror("array id was not found");
+                    free($3);
+                    exit(0);
+                  } else {
+                    if(compatible_types(symbol->type, $3->result_type) == 0) {
+                      $$ = concatenate(3, $1, "=", $3->text);
+                    } else {
+                      yyerror("variable type does not correspond to assigned expression");
+                      free($3);
+                      exit(0);
+                    }
+                  } 
+                }
+                | ID ASSIGN read {
+                  struct Symbol* symbol = lookup($1);
+
+                  if (compatible_types(symbol->type, $3->result_type) == 0) {
+                    char* temp = "\%d";
+                    if (compatible_types(symbol->type, "string") == 0) 
+                      temp = "\%s";
+                    $$ = concatenate(5, "scanf(\"", temp, "\", &", $1, ")");
+                  } else {
+                    yyerror("uncompatible read type");
+                    exit(0);
+                  }
+                }
+                | arr_access ASSIGN expr { 
+                  struct Symbol* symbol = lookup($1->id);
+
+                  if (symbol == NULL) {
+                    yyerror("array id was not found");
+                    free($1);
+                    exit(0);
+                  } else {
+                    if(compatible_types(symbol->type, concatenate(2,"array", $3->result_type)) == 0) {
+                      $$ = concatenate(3, $1->text, "=", $3->text);
+                    } else {
+                      yyerror("array type does not correspond to assigned literal");
+                      free($1);
+                      exit(0);
+                    }
+                  }
+                }
+                | arr_assign { 
+                  struct Symbol* symbol = lookup($1->id);
+
+                  if (symbol == NULL) {
+                    yyerror("array id was not found");
+                    free($1);
+                    exit(0);
+                  } else {
+                    if(compatible_types(symbol->type, $1->result_type) == 0) {
+                      $$ = $1->text;
+                    } else {
+                      yyerror("array type does not correspond to assigned literal");
+                      free($1);
+                      exit(0);
+                    }
+                  }
+                }
                 ;
 
-arr_assign:     ID ASSIGN LEFT_BRACKET arr_assign_content RIGHT_BRACKET { $$ = concatenate(5, $1, "=", "[", $4, "]"); }
-                | ID ASSIGN type LEFT_PAREN LIT_NUMBER RIGHT_PAREN { $$ = concatenate(6, $1, "=", $3, "(", "LIT_NUMBER", ")"); }
+arr_assign:     ID ASSIGN LEFT_BRACKET arr_assign_content RIGHT_BRACKET {
+                  struct MetadataArr* metadata = (struct MetadataArr*) malloc(sizeof(struct MetadataArr));
+                  metadata->id = $1;
+                  metadata->result_type = concatenate(2, "array", $4->result_type);
+                  metadata->text = concatenate(5, $1, "=", "[", $4->text, "]");
+                  $$ = metadata;
+                  free($4);
+                }
+                | ID ASSIGN type LEFT_PAREN LIT_NUMBER RIGHT_PAREN {
+                  struct MetadataArr* metadata = (struct MetadataArr*) malloc(sizeof(struct MetadataArr));
+                  metadata->id = $1;
+                  metadata->result_type = concatenate(2, "array", $3);
+                  metadata->text = concatenate(6, $1, "=", $3, "(", $5, ")");
+                  $$ = metadata;
+                }
                 ;
 
-arr_assign_content: expr { $$ = $1; }
-                    | expr CMM arr_assign_content { $$ = concatenate(3, $1, ",", $3); }
+arr_assign_content: expr { 
+                      $$ = $1; 
+                    }
+                    | expr CMM arr_assign_content { 
+                      if (compatible_types($1->result_type, $3->result_type) == 0) {
+                        struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                        metadata->text = concatenate(3, $1->text, ",", $3->text);
+                        metadata->result_type = $1->result_type;
+                        $$ = metadata;
+                        free($1);
+                        free($3);
+                      } else {
+                        yyerror("uncompatible types in array assign");
+                        free($1);
+                        free($3);
+                        exit(0);
+                      }
+                    }
                     ;
 
 assign_stmt:    assign SC { $$ = concatenate(2, $1, ";\n"); }
                 ;
 
-expr:           expr_atom op expr { $$ = concatenate(3, $1, $2, $3); }
-                | NOT expr { $$ = concatenate(2, "!", $2); }
-                | expr_atom { $$ = $1; }
+expr:           expr_atom op expr {
+                  if (compatible_types($1->result_type, $3->result_type) == 0) {
+                    // TODO TEXT TO C SIMPLIFIED
+                    char* temp = concatenate(3, $1->text, $2->text, $3->text);
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    metadata->text = temp;
+                    metadata->result_type = result_type($1->result_type, $3->result_type);
+
+                    if (strcmp($2->result_type, "logic") == 0) {
+                      if (strcmp($1->result_type, "bool") != 0) {
+                        yyerror("logic operation requires boolean expressions");
+                        exit(0);
+                      }
+                    } else if(strcmp($2->result_type, "rel") == 0) {
+                      if (strcmp($1->result_type, "int") != 0 && strcmp($1->result_type, "decimal") != 0) {
+                        yyerror("rel operation requires int or decimal expressions");
+                        exit(0);
+                      } else {
+                        metadata->result_type = "bool";
+                      }
+                    } else if (strcmp($2->result_type, "math") == 0) {
+                      if (strcmp($1->result_type, "int") != 0 && strcmp($1->result_type, "decimal") != 0) {
+                        yyerror("math operation requires int or decimal expressions");
+                        exit(0);
+                      }
+                    }
+                    
+                    $$ = metadata;
+                    free($1);
+                    free($3);
+                  } else {
+                    char* temp = concatenate(4, "uncompatible types ", $1->result_type, " and ", $3->result_type);
+                    yyerror(temp);
+                    free($1);
+                    free($3);
+                    exit(0);
+                  }
+                }
+                | NOT expr { 
+                  if (compatible_types($2->result_type, "bool") == 0) {
+                    // TODO TEXT TO C SIMPLIFIED
+                    char* temp = concatenate(2, "!", $2->text);
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    metadata->text = temp;
+                    metadata->result_type = $2->result_type;
+                    $$ = metadata;
+                    free($2);
+                  } else {
+                    char* temp = concatenate(2, "cannot use ! operand with ", $2->result_type);
+                    yyerror(temp);
+                    free($2);
+                    exit(0);
+                  }
+                }
+                | expr_atom {
+                  $$ = $1;
+                }
                 ; 
 
-expr_atom:      ID { $$ = $1; }
-                | lit { $$ = $1; }
-                | func_call { $$ = $1; }
-                | arr_access { $$ = $1; }
-                | LEFT_PAREN expr RIGHT_PAREN { $$ = concatenate(3, "(", $2, ")"); }
+expr_atom:      ID {
+                  struct Symbol* symbol = lookup($1);
+                  
+                  if(symbol != NULL) {
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    metadata->text = $1;
+                    metadata->result_type = symbol->type;
+                    $$ = metadata;
+                  } else {
+                    yyerror("unknown id");
+                    exit(0);
+                  }
+                }
+                | lit { 
+                  $$ = $1;
+                }
+                | func_call { 
+                  $$ = $1;
+                }
+                | arr_access {  
+                  // TODO
+                }
+                | LEFT_PAREN expr RIGHT_PAREN {  
+                  $2->text = concatenate(3, "(", $2->text, ")");
+                  $$ = $2;
+                }
                 ;
 
-func_call:      ID LEFT_PAREN RIGHT_PAREN { $$ = concatenate(3, $1, "(", ")"); }
-                | ID LEFT_PAREN exprs RIGHT_PAREN { $$ = concatenate(4, $1, "(", $3, ")"); }
+func_call:      ID LEFT_PAREN RIGHT_PAREN { 
+                  struct Symbol* symbol = lookup($1);
+                  
+                  if (symbol != NULL) {
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    metadata->result_type = symbol->type;
+
+                    // TODO TEXT TO C SIMPLIFIED
+                    char* temp = concatenate(3, $1, "(", ")");
+                    metadata->text = temp;
+                    $$ = metadata;
+                  } else {
+                    char* temp = concatenate(3, "function ", $1 , " not found");
+                    yyerror(temp);
+                    exit(0);
+                  }
+                }
+                | ID LEFT_PAREN {
+                  curr_call_func = lookup($1);
+                  curr_param_func = curr_call_func->n_params - 1;
+                } exprs RIGHT_PAREN { 
+                  if (curr_param_func != -1) {
+                    yyerror("wrong number of params in function call");
+                    exit(0);
+                  } else
+                    curr_param_func = 0;
+
+                  struct Symbol* symbol = lookup($1);
+                  
+                  if (symbol != NULL) {
+                    // TODO CHECK PARAMS
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                    metadata->result_type = symbol->type;
+
+                    // TODO TEXT TO C SIMPLIFIED
+                    char* temp = concatenate(4, $1, "(", $4, ")");
+                    metadata->text = temp;
+                    $$ = metadata;
+                  } else {
+                    char* temp = concatenate(3, "function ", $1 , " not found");
+                    yyerror(temp);
+                    exit(0);
+                  }
+                }
                 ;
 
-func_stmt:      func_call SC { $$ = concatenate(2, $1, ";\n"); }
+func_stmt:      func_call SC { $$ = concatenate(2, $1->text, ";\n"); }
                 ;
 
-exprs:          expr { $$ = $1; }
-                | expr CMM exprs { $$ = concatenate(3, $1, ",", $3); }
+exprs:          expr {
+                  if (strcmp(curr_call_func->param_type[curr_param_func], $1->result_type) != 0) {
+                    char* temp = concatenate(4, curr_call_func->param_type[curr_param_func], " and ", $1->result_type, " are not compatible in function call");
+                    yyerror(temp);
+                    free(temp);
+                    exit(0);
+                  }
+                  $$ = $1->text;
+                  curr_param_func--;
+                }
+                | expr CMM exprs {
+                  if (curr_param_func < 0) {
+                    yyerror("too many params in call func");
+                    exit(0);
+                  } else
+                    if (strcmp(curr_call_func->param_type[curr_param_func], $1->result_type) != 0) {
+                      char* temp = concatenate(4, curr_call_func->param_type[curr_param_func], " and ", $1->result_type, " are not compatible in function call");
+                      yyerror(temp);
+                      free(temp);
+                      exit(0);
+                    }
+                  curr_param_func--;
+                  $$ = concatenate(3, $1->text, ",", $3);
+                }
                 ;
 
-arr_access:      ID LEFT_BRACKET expr RIGHT_BRACKET { $$ = concatenate(4, $1, "[", $3, "]"); }
+arr_access:     ID LEFT_BRACKET expr RIGHT_BRACKET {
+                  if (compatible_types($3->result_type, "int") == 0) {
+                    struct MetadataArr* metadata = (struct MetadataArr*) malloc(sizeof(struct MetadataArr));
+                    metadata->id = $1;
+                    metadata->text = concatenate(4, $1, "[", $3->text, "]");
+                    $$ = metadata;
+                    free($3);
+                  } else {
+                    yyerror("array access must be an integer expression");
+                    free($3);
+                    exit(0);
+                  }
+                  
+                }
                 ;
 
-op:             math_op { $$ = $1; }
-                | rel_op { $$ = $1; }
-                | logic_op { $$ = $1; }
+op:             math_op { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->text = $1;
+                  metadata->result_type = "math"; 
+                  $$ = metadata;
+                }
+                | rel_op { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->text = $1;
+                  metadata->result_type = "rel";
+                  $$ = metadata;
+                }
+                | logic_op { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->text = $1;
+                  metadata->result_type = "logic";
+                  $$ = metadata;
+                }
                 ;
 
 math_op:        PLUS { $$ = "+"; }
@@ -196,7 +643,7 @@ math_op:        PLUS { $$ = "+"; }
                 | DIV { $$ = "/"; }
                 ;
 
-rel_op:        EQQ { $$ = "=="; }
+rel_op:         EQQ { $$ = "=="; }
                 | DIFF { $$ = "!="; }
                 | LESS_EQ { $$ = "<="; }
                 | LESS { $$ = "<"; }
@@ -208,12 +655,37 @@ logic_op:       AND { $$ = "&&"; }
                 | OR { $$ = "||"; }
                 ;
 
-print:          PRINT LEFT_PAREN print_output RIGHT_PAREN SC { $$ = concatenate(5, "PRINT", "(", $3, ")", ";\n"); }
+read:           READ LEFT_PAREN type RIGHT_PAREN { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = $3;
+                  metadata->text = "";
+                  $$ = metadata;
+                }
                 ;
 
-print_output:   lit { $$ = $1; }
-                | ID { $$ = $1; }
-                | lit PLUS print_output { $$ = concatenate(3, $1, "+", $3); }
+print:          PRINT LEFT_PAREN print_output RIGHT_PAREN SC { 
+                  char* temp = "\%d";
+                  if (compatible_types($3->result_type, "string") == 0) 
+                    temp = "\%s";
+                  $$ = concatenate(5, "printf(\"", temp, "\", ", $3->text, ");\n");
+                }
+                ;
+
+print_output:   lit {
+                  $$ = $1;
+                }
+                | ID { 
+                  struct Symbol* symbol = lookup($1);
+
+                  if (symbol == NULL) {
+                    yyerror("id was not found");
+                    exit(0);
+                  }
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->text = $1;
+                  metadata->result_type = symbol->type;
+                  $$ = metadata;
+                }
                 ;
 
 %%
@@ -223,7 +695,7 @@ int main (void) {
 }
 
 int yyerror (char *msg) {
-	fprintf (stderr, "%d: %s at '%s'\n", yylineno, msg, yytext);
+	fprintf (stderr, "line %d: %s at '%s'\n", yylineno, msg, yytext);
 	return 0;
 }
 

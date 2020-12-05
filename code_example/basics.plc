@@ -1,0 +1,22 @@
+int a;
+
+void func(int a, decimal b, string c) {
+    return;
+}
+
+int main() {
+    if (a <= 1) {
+        bool x;
+        if(false) { 
+            print("a"); 
+        }
+    } else {
+        func(2,2.2,"3");
+        
+    }
+    array int a = [1,2,3], c;
+    int b;
+    b = read(int);
+
+    return 1;
+}
