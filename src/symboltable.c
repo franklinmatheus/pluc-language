@@ -3,11 +3,15 @@
 
 #define SIZE 256
 #define CAPACITY 32
+#define MAXPARAMS 16
 
 struct Symbol {
     char* type; /* yacc constants */
     char* id;
     int scope; /* structure/func key */
+
+    char* param_type[MAXPARAMS];
+    int n_params;
 
     unsigned short return_stmt;
 };
@@ -64,6 +68,7 @@ struct Symbol* new_symbol() {
     symbol->type = "";
     symbol->id = "";
     symbol->scope = -1;
+    symbol->n_params = 0;
     symbol->return_stmt = 0;
     return symbol;
 }
@@ -115,6 +120,16 @@ void insert(int __key, struct Symbol* __symbol) {
     }
     
     hash_table[hash_index] = item;
+}
+
+void insert_func_param(int __key, char* __type) {
+    struct Symbol* func = get(__key);
+    
+    if (func->n_params == MAXPARAMS) exit(0);
+    else {
+        func->param_type[func->n_params] = __type;
+        func->n_params++;
+    }
 }
 
 void display(void) {

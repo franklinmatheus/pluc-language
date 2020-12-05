@@ -13,7 +13,7 @@
 
   char* concatenate(int quantity, ...);
 
-  struct MetadataExpr {
+  struct Metadata {
     char* result_type;
     char* text;
   };
@@ -29,6 +29,10 @@
   char* curr_decl_type;
   
   struct Symbol* temp_list[32];
+
+  struct Symbol* curr_call_func;
+  int curr_param_func = 0;
+
   int temp_list_index = -1;
   
 %}
@@ -36,7 +40,7 @@
 %union {
 	char  *sValue;  /* string value */
   
-  struct MetadataExpr* mdValue;
+  struct Metadata* mdValue;
   struct MetadataArr* mrrValue;
  };
 
@@ -44,7 +48,7 @@
 
 %token<sValue> ID LIT_STRING LIT_CHAR LIT_BOOLEAN LIT_NUMBER LIT_DECIMAL 
 
-%token PRINT
+%token READ PRINT
 %token VOID INT DECIMAL CHAR STRING BOOL ARRAY SET
 %token IF ELSE WHILE DO
 %token RETURN BREAK EXIT
@@ -59,9 +63,9 @@
 %type<sValue> section decl type var_decls var_decl func func_params params param stmts stmt
               selection_stmt if else iteration_stmt while do_while escape assign
               assign_stmt func_stmt exprs
-              op math_op rel_op logic_op print print_output
+              math_op rel_op logic_op print
 
-%type<mdValue> expr_atom expr lit func_call arr_assign_content 
+%type<mdValue> expr_atom expr lit func_call arr_assign_content read print_output op
 %type<mrrValue> arr_assign arr_access
 
 %nonassoc REDUCE
@@ -69,7 +73,7 @@
 
 %%
 
-program:        sections { display(); }
+program:        sections { }
                 ;
 
 sections:       section {}
@@ -139,31 +143,31 @@ var_decl:       ID {
                 ;
 
 lit:            LIT_NUMBER {  
-                  struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                   metadata->result_type = "int";
                   metadata->text = $1;
                   $$ = metadata;
                 }
                 | LIT_DECIMAL { 
-                  struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                   metadata->result_type = "decimal";
                   metadata->text = $1;
                   $$ = metadata;
                 } 
                 | LIT_STRING { 
-                  struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                   metadata->result_type = "string";
                   metadata->text = $1;
                   $$ = metadata;
                 }
                 | LIT_CHAR { 
-                  struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                   metadata->result_type = "char";
                   metadata->text = $1;
                   $$ = metadata;
                 }
                 | LIT_BOOLEAN { 
-                  struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                   metadata->result_type = "bool";
                   metadata->text = $1;
                   $$ = metadata;
@@ -205,6 +209,8 @@ param:          type ID {
                   symbol->type = $1;
                   symbol->id = $2;
                   symbol->scope = top();
+                  insert_func_param(top(), $1);
+
                   insert(symbol_count, symbol);
                   symbol_count++;
                 }
@@ -344,6 +350,19 @@ assign:         ID ASSIGN expr {
                     }
                   } 
                 }
+                | ID ASSIGN read {
+                  struct Symbol* symbol = lookup($1);
+
+                  if (compatible_types(symbol->type, $3->result_type) == 0) {
+                    char* temp = "\%d";
+                    if (compatible_types(symbol->type, "string") == 0) 
+                      temp = "\%s";
+                    $$ = concatenate(5, "scanf(\"", temp, "\", &", $1, ")");
+                  } else {
+                    yyerror("uncompatible read type");
+                    exit(0);
+                  }
+                }
                 | arr_access ASSIGN expr { 
                   struct Symbol* symbol = lookup($1->id);
 
@@ -402,7 +421,7 @@ arr_assign_content: expr {
                     }
                     | expr CMM arr_assign_content { 
                       if (compatible_types($1->result_type, $3->result_type) == 0) {
-                        struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                        struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                         metadata->text = concatenate(3, $1->text, ",", $3->text);
                         metadata->result_type = $1->result_type;
                         $$ = metadata;
@@ -423,10 +442,30 @@ assign_stmt:    assign SC { $$ = concatenate(2, $1, ";\n"); }
 expr:           expr_atom op expr {
                   if (compatible_types($1->result_type, $3->result_type) == 0) {
                     // TODO TEXT TO C SIMPLIFIED
-                    char* temp = concatenate(3, $1->text, $2, $3->text);
-                    struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                    char* temp = concatenate(3, $1->text, $2->text, $3->text);
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                     metadata->text = temp;
                     metadata->result_type = result_type($1->result_type, $3->result_type);
+
+                    if (strcmp($2->result_type, "logic") == 0) {
+                      if (strcmp($1->result_type, "bool") != 0) {
+                        yyerror("logic operation requires boolean expressions");
+                        exit(0);
+                      }
+                    } else if(strcmp($2->result_type, "rel") == 0) {
+                      if (strcmp($1->result_type, "int") != 0 && strcmp($1->result_type, "decimal") != 0) {
+                        yyerror("rel operation requires int or decimal expressions");
+                        exit(0);
+                      } else {
+                        metadata->result_type = "bool";
+                      }
+                    } else if (strcmp($2->result_type, "math") == 0) {
+                      if (strcmp($1->result_type, "int") != 0 && strcmp($1->result_type, "decimal") != 0) {
+                        yyerror("math operation requires int or decimal expressions");
+                        exit(0);
+                      }
+                    }
+                    
                     $$ = metadata;
                     free($1);
                     free($3);
@@ -442,7 +481,7 @@ expr:           expr_atom op expr {
                   if (compatible_types($2->result_type, "bool") == 0) {
                     // TODO TEXT TO C SIMPLIFIED
                     char* temp = concatenate(2, "!", $2->text);
-                    struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                     metadata->text = temp;
                     metadata->result_type = $2->result_type;
                     $$ = metadata;
@@ -463,7 +502,7 @@ expr_atom:      ID {
                   struct Symbol* symbol = lookup($1);
                   
                   if(symbol != NULL) {
-                    struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                     metadata->text = $1;
                     metadata->result_type = symbol->type;
                     $$ = metadata;
@@ -491,7 +530,7 @@ func_call:      ID LEFT_PAREN RIGHT_PAREN {
                   struct Symbol* symbol = lookup($1);
                   
                   if (symbol != NULL) {
-                    struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                     metadata->result_type = symbol->type;
 
                     // TODO TEXT TO C SIMPLIFIED
@@ -504,16 +543,25 @@ func_call:      ID LEFT_PAREN RIGHT_PAREN {
                     exit(0);
                   }
                 }
-                | ID LEFT_PAREN exprs RIGHT_PAREN { 
+                | ID LEFT_PAREN {
+                  curr_call_func = lookup($1);
+                  curr_param_func = curr_call_func->n_params - 1;
+                } exprs RIGHT_PAREN { 
+                  if (curr_param_func != -1) {
+                    yyerror("wrong number of params in function call");
+                    exit(0);
+                  } else
+                    curr_param_func = 0;
+
                   struct Symbol* symbol = lookup($1);
                   
                   if (symbol != NULL) {
                     // TODO CHECK PARAMS
-                    struct MetadataExpr* metadata = (struct MetadataExpr*) malloc(sizeof(struct MetadataExpr));
+                    struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                     metadata->result_type = symbol->type;
 
                     // TODO TEXT TO C SIMPLIFIED
-                    char* temp = concatenate(4, $1, "(", $3, ")");
+                    char* temp = concatenate(4, $1, "(", $4, ")");
                     metadata->text = temp;
                     $$ = metadata;
                   } else {
@@ -527,8 +575,30 @@ func_call:      ID LEFT_PAREN RIGHT_PAREN {
 func_stmt:      func_call SC { $$ = concatenate(2, $1->text, ";\n"); }
                 ;
 
-exprs:          expr { $$ = $1->text; }
-                | expr CMM exprs { $$ = concatenate(3, $1->text, ",", $3); }
+exprs:          expr {
+                  if (strcmp(curr_call_func->param_type[curr_param_func], $1->result_type) != 0) {
+                    char* temp = concatenate(4, curr_call_func->param_type[curr_param_func], " and ", $1->result_type, " are not compatible in function call");
+                    yyerror(temp);
+                    free(temp);
+                    exit(0);
+                  }
+                  $$ = $1->text;
+                  curr_param_func--;
+                }
+                | expr CMM exprs {
+                  if (curr_param_func < 0) {
+                    yyerror("too many params in call func");
+                    exit(0);
+                  } else
+                    if (strcmp(curr_call_func->param_type[curr_param_func], $1->result_type) != 0) {
+                      char* temp = concatenate(4, curr_call_func->param_type[curr_param_func], " and ", $1->result_type, " are not compatible in function call");
+                      yyerror(temp);
+                      free(temp);
+                      exit(0);
+                    }
+                  curr_param_func--;
+                  $$ = concatenate(3, $1->text, ",", $3);
+                }
                 ;
 
 arr_access:     ID LEFT_BRACKET expr RIGHT_BRACKET {
@@ -547,9 +617,24 @@ arr_access:     ID LEFT_BRACKET expr RIGHT_BRACKET {
                 }
                 ;
 
-op:             math_op { $$ = $1; }
-                | rel_op { $$ = $1; }
-                | logic_op { $$ = $1; }
+op:             math_op { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->text = $1;
+                  metadata->result_type = "math"; 
+                  $$ = metadata;
+                }
+                | rel_op { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->text = $1;
+                  metadata->result_type = "rel";
+                  $$ = metadata;
+                }
+                | logic_op { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->text = $1;
+                  metadata->result_type = "logic";
+                  $$ = metadata;
+                }
                 ;
 
 math_op:        PLUS { $$ = "+"; }
@@ -570,12 +655,37 @@ logic_op:       AND { $$ = "&&"; }
                 | OR { $$ = "||"; }
                 ;
 
-print:          PRINT LEFT_PAREN print_output RIGHT_PAREN SC { $$ = concatenate(5, "PRINT", "(", $3, ")", ";\n"); }
+read:           READ LEFT_PAREN type RIGHT_PAREN { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = $3;
+                  metadata->text = "";
+                  $$ = metadata;
+                }
                 ;
 
-print_output:   lit { $$ = $1->text; }
-                | ID { $$ = $1; }
-                | lit PLUS print_output { $$ = concatenate(3, $1->text, "+", $3); }
+print:          PRINT LEFT_PAREN print_output RIGHT_PAREN SC { 
+                  char* temp = "\%d";
+                  if (compatible_types($3->result_type, "string") == 0) 
+                    temp = "\%s";
+                  $$ = concatenate(5, "printf(\"", temp, "\", ", $3->text, ");\n");
+                }
+                ;
+
+print_output:   lit {
+                  $$ = $1;
+                }
+                | ID { 
+                  struct Symbol* symbol = lookup($1);
+
+                  if (symbol == NULL) {
+                    yyerror("id was not found");
+                    exit(0);
+                  }
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->text = $1;
+                  metadata->result_type = symbol->type;
+                  $$ = metadata;
+                }
                 ;
 
 %%

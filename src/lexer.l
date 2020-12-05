@@ -26,6 +26,7 @@ else                                                            return(ELSE);
 while                                                           return(WHILE);
 do                                                              return(DO);
 
+read                                                            return(READ);
 print                                                           return(PRINT);
 
 return                                                          return(RETURN);

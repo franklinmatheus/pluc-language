@@ -1,22 +1,22 @@
-char a;
+int a;
 
-
-void func() {
+void func(int a, decimal b, string c) {
     return;
 }
 
 int main() {
-    if (true) {
+    if (a <= 1) {
         bool x;
         if(false) { 
             print("a"); 
         }
     } else {
-        func();
+        func(2,2.2,"3");
         
     }
     array int a = [1,2,3], c;
     int b;
-    a[2] = 1;
-    return 1 + 1;
+    b = read(int);
+
+    return 1;
 }
