@@ -1,7 +1,7 @@
 int a;
 
-void func(int a, decimal b, string c) {
-    return;
+int func(int a, decimal b, string c) {
+    return a;
 }
 
 int main() {
@@ -12,7 +12,16 @@ int main() {
         }
     } else {
         func(2,2.2,"3");
-        
+    }
+    int i = 0;
+
+    while ((i >= 0) && (i < 10)) {
+        int temp = i*2;
+        i = i + temp;
+
+        if (i != i) {
+            return i;
+        }
     }
     array int a = [1,2,3], c;
     int b;

@@ -1,10 +1,11 @@
-void sub(int x, int y, int c ) {
-    int result = (x*x) - y + c;
+void sub(decimal x, decimal y, int c ) {
+    int result = ((x*x) - y) + (decimal) c;
     print(result);
 }
 
 int main() {
-    int x = 1, y = 2, c = 3;
+    int c = 3;
+    decimal x = 1.2, y = 3.2;
     sub(x, y, c);
     return 0;
 }
