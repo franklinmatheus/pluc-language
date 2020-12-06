@@ -1,0 +1,31 @@
+int a;
+
+int func(int a, decimal b, string c) {
+    return a;
+}
+
+int main() {
+    if (a <= 1) {
+        bool x;
+        if(false) { 
+            print("a"); 
+        }
+    } else {
+        func(2,2.2,"3");
+    }
+    int i = 0;
+
+    while ((i >= 0) && (i < 10)) {
+        int temp = i*2;
+        i = i + temp;
+
+        if (i != i) {
+            return i;
+        }
+    }
+    array int a = [1,2,3], c;
+    int b;
+    b = read(int);
+
+    return 1;
+}

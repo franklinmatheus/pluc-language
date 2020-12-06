@@ -1,0 +1,36 @@
+int main() {
+    int range1 = 0, range2 = 0, range3 = 0, range4 = 0;
+    int value = 0;
+
+    while (value >= 0) {
+        value = read(int);
+
+        if((value >= 0) && (value <= 25)) {
+            range1 = range1 + 1;
+        }
+
+        if((value >= 26) && (value <= 50)) {
+            range2 = range2 + 1;
+        }
+
+        if((value >= 51) && (value <= 75)) {
+            range3 = range3 + 1;
+        }
+
+        if((value >= 76) && (value <= 100)) {
+            range4 = range4 + 1;
+        }
+        print(range1);
+        print(" valores no intervalo [0,25]\n");
+
+        print(range2);
+        print(" valores no intervalo [26,50]\n");
+
+        print(range3);
+        print(" valores no intervalo [51,75]\n");
+
+        print(range4);
+        print(" valores no intervalo [76,100]\n");
+    }
+    return 0;
+}

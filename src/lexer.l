@@ -10,6 +10,7 @@
 #include <stdio.h>
 
 extern int yyerror (char *msg);
+
 %}
 
 %%
@@ -17,7 +18,7 @@ extern int yyerror (char *msg);
 (\/\*([^*]|[\r\n]|(\*+([^*\/]|[\r\n])))*\*+\/)|(\/\/.*)         { }
 
 \"(\\.|[^"\\])*\"                                               { yylval.sValue = strdup(yytext); return LIT_STRING; }
-\'([a-z]|[A-Z])\'                                               { yylval.cValue = strdup(yytext); return LIT_CHAR; }
+\'([a-z]|[A-Z])\'                                               { yylval.sValue = strdup(yytext); return LIT_CHAR; }
 true|false                                                      { yylval.sValue = strdup(yytext); return LIT_BOOLEAN; }
 
 if                                                              return(IF);
@@ -25,6 +26,7 @@ else                                                            return(ELSE);
 while                                                           return(WHILE);
 do                                                              return(DO);
 
+read                                                            return(READ);
 print                                                           return(PRINT);
 
 return                                                          return(RETURN);
@@ -32,11 +34,8 @@ break                                                           return(BREAK);
 exit                                                            return(EXIT);
 
 void                                                            return(VOID);
-short                                                           return(SHORT);
 int                                                             return(INT);
-long                                                            return(LONG);
-float                                                           return(FLOAT);
-double                                                          return(DOUBLE);
+decimal                                                         return(DECIMAL);
 char                                                            return(CHAR);
 string                                                          return(STRING);
 bool                                                            return(BOOL);
@@ -71,10 +70,11 @@ set                                                             return (SET);
 
 [a-z][a-zA-Z0-9]*                                               { yylval.sValue = strdup(yytext); return ID; }
 
-[0-9]+                                                          { yylval.iValue = atoi(yytext); return LIT_NUMBER; }
-([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { yylval.iValue = atof(yytext); return LIT_DECIMAL; }
+[0-9]+                                                          { yylval.sValue = strdup(yytext); return LIT_NUMBER; }
+([0-9]+"."[0-9]*)|([0-9]*"."[0-9]+)                             { yylval.sValue = strdup(yytext); return LIT_DECIMAL; }
 
-[ \t\n]+                                                        {  }
+\n                                                              {yylineno++;}
+[ \t]+                                                          {  }
 .                                                               { yyerror("invalid character"); }
 %%
 
