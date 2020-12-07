@@ -90,7 +90,17 @@ program:        sections {
                       printf("error!");
                       exit(0);
                   }
+                  
+                  // add includes to result code
+                  // #include <stdio>
+                  fprintf(file_output, "%s\n", "#include <stdio.h>");
+                  // #include <stdbool>
+                  fprintf(file_output, "%s\n", "#include <stdbool.h>");
+                  fprintf(file_output, "\n");
+
+                  // simplified c
                   fprintf(file_output, "%s", $1);
+
                   fclose(file_output);
                 }
                 ;
@@ -106,7 +116,7 @@ section:        decl { $$ = $1; }
                 ;
 
 decl:           type var_decls SC { 
-                  $$ = concatenate(3, $1, $2, ";\n");
+                  $$ = concatenate(4, "\t", $1, $2, ";\n");
                   for (int i = 0; i <= temp_list_index; ++i) {
                     temp_list[i]->type = $1;
                     if (lookup_in_scope(temp_list[i]->id, top()) == NULL) {
@@ -138,7 +148,7 @@ var_decls:      var_decl { $$ = $1; }
                 ;
 
 var_decl:       ID {
-                  $$ = $1;
+                  $$ = concatenate(2, " ", $1);
                   temp_list_index++;
                   struct Symbol* symbol = new_symbol();
                   symbol->id = $1;
@@ -146,7 +156,7 @@ var_decl:       ID {
                   temp_list[temp_list_index] = symbol;
                 }
                 | ID ASSIGN expr { 
-                  $$ = $1;
+                  $$ = concatenate(4, " ", $1, "=", $3->text);
                   temp_list_index++;
                   struct Symbol* symbol = new_symbol();
                   symbol->id = $1;
@@ -215,7 +225,7 @@ func:           type ID {
                     yyerror("function requires return statement");
                     exit(0);
                   }
-                  $$ = concatenate(8, $1, $2, "(", $5, ")", "{\n", $8->text, "}\n");
+                  $$ = concatenate(9, $1, " ", $2, "(", $5, ")", "{\n", $8->text, "}\n\n");
                   curr_func = -1;
                   pop();
                 }
@@ -227,11 +237,11 @@ func_params:    { $$ = ""; }
                 ;
 
 params:         param { $$ = $1; }
-                | param CMM params { $$ = concatenate(3, $1, ",", $3); }
+                | param CMM params { $$ = concatenate(3, $1, ", ", $3); }
                 ;
 
 param:          type ID { 
-                  $$ = concatenate(2, $1, $2);
+                  $$ = concatenate(3, $1, " ", $2);
                   struct Symbol* symbol = new_symbol();
                   symbol->type = $1;
                   symbol->id = $2;
@@ -248,7 +258,7 @@ stmts:          stmt {
                 }
                 | stmt stmts { 
                   struct MetadataRtn* metadata = (struct MetadataRtn*) malloc(sizeof(struct MetadataRtn));
-                  metadata->text = concatenate(2, $1->text, $2->text); ;
+                  metadata->text = concatenate(2, $1->text, $2->text);
                   
                   if ($1->has_return == 1 || $2->has_return == 1)
                     metadata->has_return = 1;
@@ -311,18 +321,35 @@ if:             IF LEFT_PAREN expr {
                   insert(symbol_count, symbol);
                   push(symbol_count);
                   symbol_count++;
-                } stmts RIGHT_BRACE {
-                  pop();
-                }
+                } stmts RIGHT_BRACE 
                 else {
                   struct MetadataRtn* metadata = (struct MetadataRtn*) malloc(sizeof(struct MetadataRtn));
-                  metadata->text = concatenate(8, "if ", "(", $3->text, ")", "{\n", $8->text, "}\n", $11->text);
-                  if ($8->has_return == 1 && $11->has_return == 1) {
+
+                  if($10->text == "") {
+                    metadata->text = concatenate(7, "\tif ", "(", $3->text, ")", "\t{\n\t", $8->text, "\t}\n");  
+                  } else {
+                    // create else using goto e label
+                    // create identifiers
+                    int identifier = top();
+                    char identifier_s[20];
+                    char if_id[30] = "conf_if_";
+                    char if_end_id[30] = "end_cond_if_";
+
+                    // copy scope id to strings of init and out of while loop
+                    sprintf(identifier_s, "%d", identifier); 
+                    strcat(if_id, identifier_s);
+                    strcat(if_end_id, identifier_s);
+
+                    metadata->text = concatenate(19, "\tif", "(!(", $3->text, "))", "{\n\t\t", "goto ", if_id, ";\n", "\t}\n", $8->text, "\t", "goto ",  if_end_id, ";\n\n", if_id, ": \n", $10->text, if_end_id, ": \n");
+                  }
+
+                  if ($8->has_return == 1 && $10->has_return == 1) {
                     metadata->has_return = 1;
                   } else {
                     metadata->has_return = 0;
                   }
                   $$ = metadata;
+                  pop();
                 }
                 ;
 
@@ -343,7 +370,7 @@ else:           {
                 stmts RIGHT_BRACE { 
                   pop();
                   struct MetadataRtn* metadata = (struct MetadataRtn*) malloc(sizeof(struct MetadataRtn));
-                  metadata->text = concatenate(4, "else ", "{\n", $4->text, "}\n");
+                  metadata->text = concatenate(2, $4->text, "\n");
                   metadata->has_return = $4->has_return;
                   $$ = metadata;
                 }
@@ -366,7 +393,20 @@ while:          WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE {
                   symbol_count++;
                 } stmts RIGHT_BRACE {
                   struct MetadataRtn* metadata = (struct MetadataRtn*) malloc(sizeof(struct MetadataRtn));
-                  metadata->text = concatenate(7, "while ", "(", $3->text, ")", "{\n", $7->text, "}\n");
+
+                  // create identifiers
+                  int identifier = top();
+                  char identifier_s[20];
+                  char loop_id[30] = "loop_while_";
+                  char loop_end_id[30] = "end_loop_while_";
+
+                  // copy scope id to strings of init and out of while loop
+                  sprintf(identifier_s, "%d", identifier); 
+                  strcat(loop_id, identifier_s);
+                  strcat(loop_end_id, identifier_s);
+
+                  metadata->text = concatenate(17, loop_id, ":\n", "\tif(!(", $3->text, "))", "{\n\t", "\tgoto", " ", loop_end_id, ";\n\t}\n", $7->text, "\tgoto", " ", loop_id, ";\n", loop_end_id, ":\n");
+
                   metadata->has_return = $7->has_return;
                   $$ = metadata;
                   pop();
@@ -386,7 +426,19 @@ do_while:       DO LEFT_BRACE {
                     exit(0);
                   }
                   struct MetadataRtn* metadata = (struct MetadataRtn*) malloc(sizeof(struct MetadataRtn));
-                  metadata->text = concatenate(9, "do ", "{\n", $4->text, "}\n", "while ", "(", $8->text, ")", ";\n"); 
+
+                  // create identifiers
+                  int identifier = top();
+                  char identifier_s[20];
+                  char loop_id[30] = "loop_do_while_";
+                  char loop_end_id[30] = "end_loop_do_while_";
+
+                  // copy scope id to strings of init and out of while loop
+                  sprintf(identifier_s, "%d", identifier); 
+                  strcat(loop_id, identifier_s);
+                  strcat(loop_end_id, identifier_s);
+
+                  metadata->text = concatenate(17, loop_id, ":\n", $4->text,"\tif(!(", $8->text, "))", "{\n\t", "\tgoto", " ", loop_end_id, ";\n\t}\n", "\tgoto", " ", loop_id, ";\n", loop_end_id, ":\n");
                   metadata->has_return = $4->has_return;
                   $$ = metadata;
                   pop();
@@ -410,7 +462,7 @@ escape:         BREAK SC {
 
                   if (compatible_types(symbol->type, $2->result_type) == 0) {
                     struct MetadataRtn* metadata = (struct MetadataRtn*) malloc(sizeof(struct MetadataRtn));
-                    metadata->text = concatenate(3, "return ", $2->text, ";\n");
+                    metadata->text = concatenate(3, "\treturn ", $2->text, ";\n");
                     metadata->has_return = 1;
                     $$ = metadata;
                     struct Symbol* symbol = new_symbol();
@@ -720,8 +772,14 @@ func_call:      ID LEFT_PAREN RIGHT_PAREN {
                     struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                     metadata->result_type = symbol->type;
 
-                    // TODO TEXT TO C SIMPLIFIED
-                    char* temp = concatenate(4, $1, "(", $4, ")");
+                    // TODO: TEXT TO C SIMPLIFIED
+                    // TODO: check whether has a scope
+                    char* temp;
+                    if(top())
+                      temp = concatenate(5, "\t", $1, "(", $4, ")");
+                    else 
+                      temp = concatenate(4, $1, "(", $4, ");");
+
                     metadata->text = temp;
                     $$ = metadata;
                   } else {
@@ -835,9 +893,10 @@ read:           READ LEFT_PAREN type RIGHT_PAREN {
 
 print:          PRINT LEFT_PAREN print_output RIGHT_PAREN SC { 
                   char* temp = "\%d";
-                  if (compatible_types($3->result_type, "string") == 0) 
+                  if (compatible_types($3->result_type, "string") == 0)  
                     temp = "\%s";
-                  $$ = concatenate(5, "printf(\"", temp, "\", ", $3->text, ");\n");
+
+                  $$ = concatenate(6, "\t","printf(\"", temp, "\", ", $3->text, ");\n");
                 }
                 ;
 
@@ -878,11 +937,13 @@ int yyerror (char *msg) {
 
 char* concatenate(int quantity, ...) {
     va_list elements;
+
     /* Initialize valist for arguments quantity */
     va_start(elements, quantity);
 
     /* Access all elements to get the final string size */
     int result_length = 0;
+    
     for (int i = 0; i < quantity; ++i)
       result_length += strlen(va_arg(elements, char*));
 
@@ -900,5 +961,6 @@ char* concatenate(int quantity, ...) {
       strcpy(result + delimiter, source);
       delimiter += strlen(source);
     }
+
     return result;
   }
