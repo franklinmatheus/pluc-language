@@ -377,8 +377,19 @@ while:          WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE {
                 } stmts RIGHT_BRACE {
                   struct MetadataRtn* metadata = (struct MetadataRtn*) malloc(sizeof(struct MetadataRtn));
 
-                  metadata->text = concatenate(7, "while ", "(", $3->text, ")", "{\n", $7->text, "}\n");
-                  
+                  // create identifiers
+                  int identifier = top();
+                  char identifier_s[20];
+                  char loop_id[30] = "loop_while_";
+                  char loop_end_id[30] = "end_loop_while_";
+
+                  // copy scope id to strings of init and out of while loop
+                  sprintf(identifier_s, "%d", identifier); 
+                  strcat(loop_id, identifier_s);
+                  strcat(loop_end_id, identifier_s);
+
+                  metadata->text = concatenate(17, loop_id, ":\n", "\tif(!(", $3->text, "))", "{\n\t", "\tgoto", " ", loop_end_id, ";\n\t}\n", $7->text, "\tgoto", " ", loop_id, ";\n", loop_end_id, ":\n");
+
                   metadata->has_return = $7->has_return;
                   $$ = metadata;
                   pop();
@@ -398,7 +409,19 @@ do_while:       DO LEFT_BRACE {
                     exit(0);
                   }
                   struct MetadataRtn* metadata = (struct MetadataRtn*) malloc(sizeof(struct MetadataRtn));
-                  metadata->text = concatenate(9, "do ", "{\n", $4->text, "}\n", "while ", "(", $8->text, ")", ";\n"); 
+
+                  // create identifiers
+                  int identifier = top();
+                  char identifier_s[20];
+                  char loop_id[30] = "loop_do_while_";
+                  char loop_end_id[30] = "end_loop_do_while_";
+
+                  // copy scope id to strings of init and out of while loop
+                  sprintf(identifier_s, "%d", identifier); 
+                  strcat(loop_id, identifier_s);
+                  strcat(loop_end_id, identifier_s);
+
+                  metadata->text = concatenate(17, loop_id, ":\n", $4->text,"\tif(!(", $8->text, "))", "{\n\t", "\tgoto", " ", loop_end_id, ";\n\t}\n", "\tgoto", " ", loop_id, ";\n", loop_end_id, ":\n");
                   metadata->has_return = $4->has_return;
                   $$ = metadata;
                   pop();
