@@ -321,18 +321,35 @@ if:             IF LEFT_PAREN expr {
                   insert(symbol_count, symbol);
                   push(symbol_count);
                   symbol_count++;
-                } stmts RIGHT_BRACE {
-                  pop();
-                }
+                } stmts RIGHT_BRACE 
                 else {
                   struct MetadataRtn* metadata = (struct MetadataRtn*) malloc(sizeof(struct MetadataRtn));
-                  metadata->text = concatenate(8, "\tif ", "(", $3->text, ")", "\t{\n\t\t", $8->text, "\t}\n", $11->text);
-                  if ($8->has_return == 1 && $11->has_return == 1) {
+
+                  if($10->text == "") {
+                    metadata->text = concatenate(7, "\tif ", "(", $3->text, ")", "\t{\n\t", $8->text, "\t}\n");  
+                  } else {
+                    // create else using goto e label
+                    // create identifiers
+                    int identifier = top();
+                    char identifier_s[20];
+                    char if_id[30] = "conf_if_";
+                    char if_end_id[30] = "end_cond_if_";
+
+                    // copy scope id to strings of init and out of while loop
+                    sprintf(identifier_s, "%d", identifier); 
+                    strcat(if_id, identifier_s);
+                    strcat(if_end_id, identifier_s);
+
+                    metadata->text = concatenate(19, "\tif", "(!(", $3->text, "))", "{\n\t\t", "goto ", if_id, ";\n", "\t}\n", $8->text, "\t", "goto ",  if_end_id, ";\n\n", if_id, ": \n", $10->text, if_end_id, ": \n");
+                  }
+
+                  if ($8->has_return == 1 && $10->has_return == 1) {
                     metadata->has_return = 1;
                   } else {
                     metadata->has_return = 0;
                   }
                   $$ = metadata;
+                  pop();
                 }
                 ;
 
@@ -353,7 +370,7 @@ else:           {
                 stmts RIGHT_BRACE { 
                   pop();
                   struct MetadataRtn* metadata = (struct MetadataRtn*) malloc(sizeof(struct MetadataRtn));
-                  metadata->text = concatenate(4, "\telse ", "{\n\t\t", $4->text, "\t}\n");
+                  metadata->text = concatenate(2, $4->text, "\n");
                   metadata->has_return = $4->has_return;
                   $$ = metadata;
                 }
