@@ -1,15 +1,16 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-void sub(decimal x, decimal y, int c){
-	int result=((x*x)-y)+(double) c;
-	printf("%d", result);
-}
-
 int main(){
-	int c=3;
-	decimal x=1.2, y=3.2;
-	sub(x,y,c);
+	int x=0;
+loop_while_3:
+	if(!(x<10)){
+		goto end_loop_while_3;
+	}
+	printf("%d", x);
+x=x+1;
+	goto loop_while_3;
+end_loop_while_3:
 	return 0;
-A}
+}
 
