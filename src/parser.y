@@ -67,10 +67,10 @@
 %left	PLUS	MINUS
 %left	TIMES	DIV
 
-%type<sValue> sections section decl type var_decls var_decl func func_params params param 
+%type<sValue> sections section decl var_decls var_decl func func_params params param 
               assign assign_stmt func_stmt exprs math_op rel_op logic_op print
 
-%type<mdValue> expr_atom expr lit func_call arr_assign_content read print_output op
+%type<mdValue> expr_atom expr lit func_call arr_assign_content read print_output op type
 %type<mrrValue> arr_assign arr_access
 %type<rtnValue> escape if else selection_stmt stmts stmt iteration_stmt while do_while
 
@@ -80,8 +80,7 @@
 %%
 
 program:        sections { 
-                  display();
-
+                  
                   FILE *file_output;
 
                   file_output = fopen("compiled.c", "w");
@@ -116,9 +115,9 @@ section:        decl { $$ = $1; }
                 ;
 
 decl:           type var_decls SC { 
-                  $$ = concatenate(4, "\t", $1, $2, ";\n");
+                  $$ = concatenate(4, "\t", $1->text, $2, ";\n");
                   for (int i = 0; i <= temp_list_index; ++i) {
-                    temp_list[i]->type = $1;
+                    temp_list[i]->type = $1->result_type;
                     if (lookup_in_scope(temp_list[i]->id, top()) == NULL) {
                       insert(symbol_count, temp_list[i]);
                       symbol_count++;  
@@ -133,14 +132,54 @@ decl:           type var_decls SC {
                 }
                 ;
 
-type:           INT { $$ = "int"; }
-                | DECIMAL { $$ = "decimal"; }
-                | CHAR { $$ = "char"; }
-                | STRING { $$ = "string"; }
-                | BOOL { $$ = "bool"; }
-                | VOID { $$ = "void"; }
-                | SET type { $$ = concatenate(2, "set", $2); }
-                | ARRAY type { $$ = concatenate(2, "array", $2); }
+type:           INT { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "int";
+                  metadata->text = "int";
+                  $$ = metadata; 
+                }
+                | DECIMAL { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "decimal";
+                  metadata->text = "double";
+                  $$ = metadata;
+                }
+                | CHAR { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "char";
+                  metadata->text = "char";
+                  $$ = metadata;
+                }
+                | STRING { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "string";
+                  metadata->text = "char*";
+                  $$ = metadata;
+                }
+                | BOOL { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "bool";
+                  metadata->text = "bool";
+                  $$ = metadata;
+                }
+                | VOID { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = "void";
+                  metadata->text = "void";
+                  $$ = metadata; 
+                }
+                | SET type { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = concatenate(2, "set", $2->result_type);
+                  metadata->text = concatenate(2, $2->text, "[]");
+                  $$ = metadata;
+                }
+                | ARRAY type { 
+                  struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
+                  metadata->result_type = concatenate(2, "array", $2->result_type); 
+                  metadata->text = concatenate(2, $2->text, "[]");
+                  $$ = metadata;
+                }
                 ;
 
 var_decls:      var_decl { $$ = $1; }
@@ -208,7 +247,7 @@ lit:            LIT_NUMBER {
 func:           type ID {
                   if (lookup_in_scope($2, top()) == NULL) {
                     struct Symbol* symbol = new_symbol();
-                    symbol->type = $1;
+                    symbol->type = $1->result_type;
                     symbol->id = $2;
                     symbol->scope = top();
                     insert(symbol_count, symbol);
@@ -221,11 +260,11 @@ func:           type ID {
                     exit(0);
                   }
                 } LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE {
-                  if ($8->has_return == 0 && strcmp($1, "void") != 0) {
+                  if ($8->has_return == 0 && strcmp($1->result_type, "void") != 0) {
                     yyerror("function requires return statement");
                     exit(0);
                   }
-                  $$ = concatenate(9, $1, " ", $2, "(", $5, ")", "{\n", $8->text, "}\n\n");
+                  $$ = concatenate(9, $1->text, " ", $2, "(", $5, ")", "{\n", $8->text, "}\n\n");
                   curr_func = -1;
                   pop();
                 }
@@ -241,12 +280,13 @@ params:         param { $$ = $1; }
                 ;
 
 param:          type ID { 
-                  $$ = concatenate(3, $1, " ", $2);
+                  $$ = concatenate(3, $1->text, " ", $2);
                   struct Symbol* symbol = new_symbol();
-                  symbol->type = $1;
+                  symbol->type = $1->result_type;
                   symbol->id = $2;
                   symbol->scope = top();
-                  insert_func_param(top(), $1);
+                  insert_func_param(top(), $1->result_type);
+                  printf("%s added ==============", $1->result_type);
 
                   insert(symbol_count, symbol);
                   symbol_count++;
@@ -567,7 +607,7 @@ arr_assign:     ID ASSIGN LEFT_BRACKET arr_assign_content RIGHT_BRACKET {
                   struct MetadataArr* metadata = (struct MetadataArr*) malloc(sizeof(struct MetadataArr));
                   metadata->id = $1;
                   metadata->result_type = concatenate(2, "array", $4->result_type);
-                  metadata->text = concatenate(5, $1, "=", "[", $4->text, "]");
+                  metadata->text = concatenate(5, $1, "= ", "{", $4->text, "}");
                   $$ = metadata;
                   free($4);
                 }
@@ -575,7 +615,7 @@ arr_assign:     ID ASSIGN LEFT_BRACKET arr_assign_content RIGHT_BRACKET {
                   struct MetadataArr* metadata = (struct MetadataArr*) malloc(sizeof(struct MetadataArr));
                   metadata->id = $1;
                   metadata->result_type = concatenate(2, "array", $3);
-                  metadata->text = concatenate(6, $1, "=", $3, "(", $5, ")");
+                  metadata->text = concatenate(6, $1, "= malloc(", $5, " * sizeof(", $3->text, "))");
                   $$ = metadata;
                 }
                 ;
@@ -694,20 +734,20 @@ expr_atom:      ID {
                     exit(0);
                   }
                   
-                  if (strcmp($2, "decimal") == 0 && strcmp(symbol->type, "int") == 0) {
+                  if (strcmp($2->result_type, "decimal") == 0 && strcmp(symbol->type, "int") == 0) {
                     struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                     metadata->text = concatenate(2, "(double) ", $4);
                     metadata->result_type = "decimal";
                     $$ = metadata;
-                  } else if (strcmp($2, "int") == 0 && strcmp(symbol->type, "decimal") == 0) {
+                  } else if (strcmp($2->result_type, "int") == 0 && strcmp(symbol->type, "decimal") == 0) {
                     struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
                     metadata->text = concatenate(2, "(int) ", $4);
                     metadata->result_type = "int";
                     $$ = metadata;
-                  } else if (strcmp($2, symbol->type) == 0) {
+                  } else if (strcmp($2->result_type, symbol->type) == 0) {
                     struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
-                    metadata->text = concatenate(4, "(", $2, ") ", $4);
-                    metadata->result_type = $2;
+                    metadata->text = concatenate(4, "(", $2->text, ") ", $4);
+                    metadata->result_type = $2->result_type;
                     $$ = metadata;
                   } else {
                     yyerror("unable to cast variable to this type");
@@ -794,6 +834,7 @@ func_stmt:      func_call SC { $$ = concatenate(2, $1->text, ";\n"); }
                 ;
 
 exprs:          expr {
+                  printf("%s %s===================== DIFFF\n", curr_call_func->param_type[curr_param_func], $1->text);
                   if (strcmp(curr_call_func->param_type[curr_param_func], $1->result_type) != 0) {
                     char* temp = concatenate(4, curr_call_func->param_type[curr_param_func], " and ", $1->result_type, " are not compatible in function call");
                     yyerror(temp);
@@ -808,6 +849,7 @@ exprs:          expr {
                     yyerror("too many params in call func");
                     exit(0);
                   } else
+                    printf("%s %s=====================\n", curr_call_func->param_type[curr_param_func], $1->text);
                     if (strcmp(curr_call_func->param_type[curr_param_func], $1->result_type) != 0) {
                       char* temp = concatenate(4, curr_call_func->param_type[curr_param_func], " and ", $1->result_type, " are not compatible in function call");
                       yyerror(temp);
@@ -885,7 +927,7 @@ logic_op:       AND { $$ = "&&"; }
 
 read:           READ LEFT_PAREN type RIGHT_PAREN { 
                   struct Metadata* metadata = (struct Metadata*) malloc(sizeof(struct Metadata));
-                  metadata->result_type = $3;
+                  metadata->result_type = $3->result_type;
                   metadata->text = "";
                   $$ = metadata;
                 }

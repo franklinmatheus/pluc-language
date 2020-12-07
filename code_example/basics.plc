@@ -5,6 +5,10 @@ int func(int a, decimal b, string c) {
 }
 
 int main() {
+
+    int b;
+    int i = 0;
+    
     if (a <= 1) {
         bool x;
         if(false) { 
@@ -13,7 +17,7 @@ int main() {
     } else {
         func(2,2.2,"3");
     }
-    int i = 0;
+    
 
     while ((i >= 0) && (i < 10)) {
         int temp = i*2;
@@ -23,8 +27,6 @@ int main() {
             return i;
         }
     }
-    array int a = [1,2,3], c;
-    int b;
     b = read(int);
 
     return 1;
