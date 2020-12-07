@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+    <head></head>
+    <body>
+
+        <h1 id="topo">Documentação do compilador</h1>
+        <p><b>Visão geral</b></p>
+        <p>
+            Este documento irá apresentar detalhadamente todas as características da linguagem de programação desenvolvida, 
+            demonstrando todas as etapas de implementação do compilador. 
+            Incluindo a estrutura sintática escolhida, as expressões e variáveis e a passagem de parâmetros, 
+            as unidades léxicas criadas, os tratamentos das estruturas 
+            condicionais, de repetição e subprogramas. Além disso, serão exemplos de programas 
+            criados a linguagem proposta, explicar o funcionamento da compilação e por fim as instruções para uso do 
+            compilador.
+        </p>
+        <P>
+            O processo de desenvolvidomento do compilador da linguagem foi dividido em três etapas:
+            <ul>
+                <li>Desenvolvimento do analisador léxico</li>
+                <li>Desenvolvimento do analisador sintático</li>
+                <li>Desenvolvimento do analisador semântico</li>
+            </ul>
+            Essas etapas envolveram a definição de tradução do código-fonte para lexemas, definição de uma gramática para a linguagem e a organização de todas as ações necessárias para que o compilador funcionasse da maneira correta diante dos possíveis cenários.
+        </P>
+
+        <hr>
+        [<a href="#id2">next</a>] <b id="id1">Transformação do código-fonte em unidades léxicas</b><br>
+        <p>
+            Para transformar o código-fonte escrito na linguagem proposta, o lex foi utilizado para reconhecer os tokens presentes no texto. Essa transformação faz uso de expressões regulares que identificam os padrões no código-fonte e os transformam nos respectivos lexemas (representados, internamente, através de constantes com valores inteiros).
+            <br>
+            No processo de identificação de tokens, as seguintes palavras chave são identificadas e são reservadas:
+            <ul>
+                <li>if</li>
+                <li>else</li>
+                <li>while</li>
+                <li>do</li>
+                <li>read</li>
+                <li>print</li>
+                <li>return</li>
+                <li>break</li>
+                <li>exit</li>
+                <li>void</li>
+                <li>int</li>
+                <li>decimal</li>
+                <li>char</li>
+                <li>string</li>
+                <li>bool</li>
+                <li>array</li>
+                <li>set</li>
+                <li>true</li>
+                <li>false</li>
+            </ul>
+            A identificação de identificadores de funções e variáveis segue as seguintes regras: 1) deve começar com uma LETRA minúscula 2) os demais caracteres podem ser uma mistura de letras maiúsculas/minúsculas e números.
+            <br>
+            Com relação aos literais:
+            <ul>
+                <li>Literais de string são todas as cadeias de caracteres entre aspas duplas.</li>
+                <li>Literais de char são formados, especificamente, por uma letra (maiúscula ou minúscula) entre aspas simples.</li>
+                <li>Literal booleano são as palavras true e false.</li>
+                <li>Literal inteiro são cadeias de números de 0 a 9.</li>
+                <li>Literal de decimal são cadeias de números com um ponto no meio ou um ponto seguido de uma cadeia de números.</li>
+            </ul>
+            Os demais tokens são:
+            <ul>
+                <li>;</li>
+                <li>,</li>
+                <li>(</li>
+                <li>)</li>
+                <li>[</li>
+                <li>]</li>
+                <li>{</li>
+                <li>}</li>
+                <li>=</li>
+                <li>+</li>
+                <li>-</li>
+                <li>/</li>
+                <li>*</li>
+                <li>==</li>
+                <li>!=</li>
+                <li><=</li>
+                <li><</li>
+                <li>>=</li>
+                <li>></li>
+                <li>&&</li>
+                <li>||</li>
+                <li>!</li>
+            </ul>
+            <b>Qualquer caractere diferente dos apresentados acima não será reconhecido pelo compilador.</b>
+        </p>
+        
+        <hr>
+        [<a href="#id3">next</a>] <b id="id2">Gramática</b><br>
+        <p>
+            <b>program</b>:            sections <br>
+            <b>sections</b>:           section | section sections <br>
+            <b>section</b>:            decl | func <br>
+            <b>decl</b>:               type var_decls SC <br>
+            <b>type</b>:               INT | DECIMAL | CHAR | STRING | BOOL | VOID | ARRAY type <br>
+            <b>var_decls</b>:          var_decl | var_decl CMM var_decls <br>
+            <b>var_decl</b>:           ID | ID ASSIGN expr | arr_assign <br>
+            <b>lit</b>:                LIT_NUMBER | LIT_DECIMAL | LIT_STRING | LIT_CHAR | LIT_BOOLEAN <br>
+            <b>func</b>:               type ID LEFT_PAREN func_params RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE <br>
+            <b>func_params</b>:        | params | VOID <br>
+            <b>params</b>:             param | param CMM params <br>
+            <b>param</b>:              type ID <br>
+            <b>stmts</b>:              stmt | stmt stmts <br>
+            <b>stmt</b>:               selection_stmt | iteration_stmt | escape | decl | print | func_stmt | assign_stmt <br>
+            <b>selection_stmt</b>:     if <br>
+            <b>if</b>:                 IF LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE else <br>
+            <b>else</b>:               | ELSE LEFT_BRACE stmts RIGHT_BRACE <br>
+            <b>iteration_stmt</b>:     while | do_while <br>
+            <b>while</b>:              WHILE LEFT_PAREN expr RIGHT_PAREN LEFT_BRACE stmts RIGHT_BRACE <br>
+            <b>do_while</b>:           DO LEFT_BRACE stmts RIGHT_BRACE WHILE LEFT_PAREN expr RIGHT_PAREN SC <br>
+            <b>escape</b>:             BREAK SC | EXIT SC | RETURN expr SC | RETURN SC <br>
+            <b>assign</b>:             ID ASSIGN expr | ID ASSIGN read | arr_access ASSIGN expr | arr_assign <br>
+            <b>arr_assign</b>:         ID ASSIGN LEFT_BRACKET arr_assign_content RIGHT_BRACKET | ID ASSIGN type LEFT_PAREN LIT_NUMBER RIGHT_PAREN <br>
+            <b>arr_assign_content</b>: expr | expr CMM arr_assign_content <br>
+            <b>assign_stmt</b>:        assign SC <br>
+            <b>expr</b>:               expr_atom op expr | NOT expr | expr_atom <br>
+            <b>expr_atom</b>:          ID | LEFT_PAREN type RIGHT_PAREN ID | lit | func_call | arr_access | LEFT_PAREN expr RIGHT_PAREN <br>
+            <b>func_call</b>:          ID LEFT_PAREN RIGHT_PAREN | ID LEFT_PAREN exprs RIGHT_PAREN <br>
+            <b>func_stmt</b>:          func_call SC <br>
+            <b>exprs</b>:              expr | expr CMM exprs <br>
+            <b>arr_access</b>:         ID LEFT_BRACKET expr RIGHT_BRACKET <br>
+            <b>op</b>:                 math_op | rel_op | logic_op <br>
+            <b>math_op</b>:            PLUS | MINUS | TIMES | DIV <br>
+            <b>rel_op</b>:             EQQ | DIFF | LESS_EQ | LESS | HIGHER_EQ | HIGHER <br>
+            <b>logic_op</b>:           AND | OR <br>
+            <b>read</b>:               READ LEFT_PAREN type RIGHT_PAREN <br>
+            <b>print</b>:              PRINT LEFT_PAREN print_output RIGHT_PAREN SC <br>
+            <b>print_output</b>:       lit | ID | arr_access <br>
+                
+        </p>
+
+        <hr>
+        [<a href="#id4">next</a>] <b id="id3">Tipos primitivos</b><br>
+        <p>
+            O compilador suporta os seguintes tipos primitivos: <br>
+            <ul>
+                <li>int</li>
+                <li>decimal</li>
+                <li>char</li>
+                <li>string</li>
+                <li>bool</li>
+                <li>array</li>
+
+                <p>Variáveis do tipo array podem ser combinadas com os demais tipos primitivos <strike>ou até ela mesma para formar
+                    vetores de várias dimensões</strike>.<br>
+                    Uma forma de definir um array de inteiros seria utilizando <b>array int</b>.
+                </p>
+            </ul>    
+        </p>
+        
+        <hr>
+        [<a href="#id5">next</a>] <b id="id4">Declaração de variáveis</b><br>
+        <p>
+        A declaração de variáveis na linguagem pode acontecer de forma aninhada ou não.<br>
+        É possível declarar várias variáveis, na mesma linha e de um mesmo tipo, de uma única vez da seguinte forma:
+        <ul>
+            <li>int a, b, c, d;</li>
+        </ul>
+        Ainda é possível inicializar uma ou várias variáveis no momento de sua inicialização:
+        <ul>
+            <li>int a = 9, b, c = 4, d;</li>
+        </ul>
+        <br>
+        A inicialização de vetores pode ser feita de duas maneiras. Numa, o vetor é diretamente atribuído utilizando valores separados por vírgula dentro de colchetes. A outra maneira é definir o tipo de dados do vetor e o seu tamanho:<br>
+        <ul>
+            <li>array int a = [1,2,3];</li>
+            <li>array int a = int(3);</li>
+        </ul>
+        </p>
+        <hr>
+        [<a href="#id6">next</a>] <b id="id5">Declaração de funções</b><br>
+        <p>
+            O compilador não aceita a declaração de funções aninhadas. Todas devem ser declaradas no escopo global e, necessariamente, antes de ser chamada/invocada.<br>
+            A declaração das funções segue um formato igual ao da linguagem C. Digamos que exista uma função soma que recebe dois valores inteiros e retorne o resultado da soma entre eles, sua aparência seria a seguinte:<br>
+            
+            <p>
+                <code>
+                    int soma(int a, int b) { <br>
+                        return a + b; <br>
+                    } <br>
+                </code>
+            </p>
+
+            As funções poder receber nenhum, um ou vários parâmetros, que devem ser definidos na sua declaração. <br>
+            Todas as funções devem ter um retorno de acordo com o tipo declarado em sua assinatura, exceto funções do tipo <b>void</b>. No retorno pode ser qualquer tipo de expressão, desde que seu tipo case com o da função ao qual o retorno está inserido.
+        </p>
+        
+
+        <hr>
+        [<a href="#id7">next</a>] <b id="id6">Estruturas de seleção</b><br>
+        <p>
+            A estrutura de repetição suportada pelo compilador é o if-then-else. A estrutura é similar ao da linguagem C, mas, em todos os casos, requer o uso de chaves ({}).<br>
+            O if pode ou não ter um else em seguida dele e, na condição presente no if, é obrigatório que seja uma expressão com valor booleano.
+            
+        </p>
+        <hr>
+        [<a href="#id8">next</a>] <b id="id7">Estruturas de repetição</b><br>
+        <p>
+            As estruturas de repetição presentee na linguagem são o while e o do-while.<br>
+            Assim como no if-then-else, essas estruturas requerem o uso de chaves ({}).<br>
+        </p>
+
+        <hr>
+        [<a href="#id9">next</a>] <b id="id8">Escapes</b><br>
+        O compilador suporta três tipos de escapes:
+        <ul>
+            <li><strike>break</strike></li>
+            <li><strike>exit</strike></li>
+            <li>return</li>
+            <p>
+                No caso do return, uma expressão pode ser associada.
+            </p>
+        </ul>
+
+        <hr>
+        [<a href="#id10">next</a>] <b id="id9">Leitura e escrita</b><br>
+        O compilador é capaz de processar uma operação de leitura e uma de escrita. <br>
+        Na de leitura, a palavra utilizada é a <b>read</b>. É preciso informar, explicitamente, qual tipo deseja-se ler e para qual variável esse valor vai ser destinado. Por exemplo, para ler um valor inteiro e armazenar na variável a, a instrução seria:<br>
+        <code>a = read(int);</code><br>
+        Na escrita, a instrução <b>print</b> pode ser utilizada. O print é utilizado para escrever <b>um valor</b> por vez, seja o de uma variável ou um literal. Sua utilização acontece da seguinte forma:<br>
+        <code>print("literal string");</code>
+
+        <hr>
+        [<a href="#id11">next</a>] <b id="id10">Verificações realizadas</b><br>
+        <p>
+            <b>Variável/função existe</b><br>
+            Quando uma variável é utilizada numa expressão ou uma função é chamada, por exemplo, o compilador verifica se ela realmente existe.<br>
+            O que é feito internamente é uma busca nos escopos mais externos pelo nome da variável/função. Caso o nome não seja encontrado, o compilador vai informar e parar a compilação.
+        </p>
+
+        <p>
+            <b>Variável/função duplicada</b><br>
+            O compilador verifica se uma variável/função o mesmo nome já foi declarado no respectivo escopo.
+        </p>
+
+        <p>
+            <b>Tipo do retorno da função/Função sempre possui um retorno</b><br>
+            Com relação ao retorno das funções, tanto o tipo quando a existência dos retornos são verificados. Em funções do tipo void, o retorno não é obrigatório, porém, nas funções dos outros tipos, o retorno é obrigatório e deve atender o tipo declarado na assinatura. É verificado se pelo menor um dos statements da função é um retorno.<br>
+            No caso do if-then-else, a verificação avalia se existe um retorno nos dois sentidos que o fluxo do código pode tomar.
+        </p>
+
+        <p>
+            <b>Expressão do if e while apresenta valor booleano</b><br>
+            Para se caracterizarem como condições, as expressões utilizadas no if e while devem ter um valor booleano.
+        </p>
+
+        <p>
+            <b>Compatibilidade de tipos</b><br>
+            Nas operações, a Compatibilidade dos tipos dos operandos é avaliada. Em todas as operações os operandos devem, obrigatoriamente, apresentar o mesmo tipo.
+        </p>
+
+        <p>
+            <b>Operandos e operadores</b><br>
+            nas expressões, o tipo dos operandos é checado para que o operador possa ser utilizado. Por exemplo, o operador de soma (+) só pode ser utilizado valores numéricos (int ou decimal) e o operador AND (&&) apenas entre valores booleanos.
+        </p>
+
+        <p>
+            <b>Atribuição de valor</b><br>
+            Nas atribuições de valores às variáveis os tipos são checados para verificar se são compatíveis; o requisito para compatibilidade é que os tipos sejam iguais.
+        </p>
+
+        <p>
+            <b>Chamada de função</b><br>
+            Nas chamadas das funções, o compilador verifica se aquela função realmente existe e, se existir, se os parâmetros que estão sendo passados estão de acordo com os declarados na asstinatura, seja na quantidade de parâmetros como na compatibilidade de tipos.
+        </p>
+
+        <p>
+            <b>Atribuição de arrays</b><br>
+            Ao atribuir um array (representação de valores separados por vírgula entre colchetes) à uma variável do tipo array, o tipo dos elementos atômicos são verificados.<br>
+        </p>
+
+        <p>
+            <b>Literal de array apresenta todos elementos do mesmo tipo</b><br>
+            Ao expressar os arrays explicitamente (representação de valores separados por vírgula entre colchetes), os tipos de todos os elementos internos são verificados para garantir que são compatíveis (i.e. mesmo tipo).
+        </p>
+        
+        <p>
+            <b>Valor de leitura é do mesmo tipo da variável</b><br>
+            Ao ler um valor, o compilador verifica se o elemento a ser lido é do mesmo tipo da variável que deseja-se armazenar o valor.
+        </p>
+
+        <p>
+            <b>Tipo de cast compatível</b><br>
+            Casts podem ser realizados, exclusivamente, com variáveis. O compilador verifica se o tipo da varíavel é compatível com o tipo do cast.
+        </p>
+
+        <hr>
+        [<a href="#id12">next</a>] <b id="id11">Instruções de uso</b><br>
+        O projeto do compilador é formado por três arquivos:
+        <ul>
+            <li>lexer.l</li>
+            <li>parser.y</li>
+            <li>symboltable.c</li>
+        </ul>
+
+        Para utilizar o compilador, é preciso, antes de tudo, compilar tudo (todos os arquivos devem estar no mesmo diretório). Para isso, os seguintes comandos devem ser executados (via terminal):<br>
+
+        <ol>
+            <li><code>$ flex lexer.l</code></li>
+            <li><code>$ bison parser.y -d -v</code></li>
+            <li><code>$ gcc lex.yy.c parser.tab.c -o parser</code></li>
+        </ol>
+
+        Neste momento, o arquivo binário <b>parser</b> pode ser utilizado para compilar algum programa escrito na linguagem proposta. <br>
+        Para isso, basta realizar o seguinte comando (considerando code.plc o arquivo com o código-fonte):<br>
+        <code>$ ./parser < code.plc </code><br>
+        Ao finalizar o processo de compilação, um arquivo .c será criado contendo o código traduzido para o linguagem C.
+
+        <hr>
+        [<a href="#topo">topo</a>] <b id="id12">Código de exemplo</b><br>
+        <p>
+            Um código de exemplo suportado pelo compilador e escrito na linguagem proposta que implementa o quicksort pode ser observado abaixo.<br>
+            
+            <p>
+                <code>
+                    void quicksort (array int values, int began, int end) { <br>
+                        int i, j, pivo, aux; <br>
+                        i = began; <br>
+                        j = end-1; <br>
+                        pivo = values[(began + end) / 2]; <br>
+                        while (i <= j) { <br>
+                            while((values[i] < pivo) && (i < end)) { <br>
+                                i = i + 1; <br>
+                            } <br>
+                            while((values[j] > pivo) && (j > began)) { <br>
+                                j = j + 1; <br>
+                            } <br>
+                            if(i <= j) { <br>
+                                aux = values[i]; <br>
+                                values[i] = values[j]; <br>
+                                values[j] = aux; <br>
+                                i = i + 1; <br>
+                                j = j + 1; <br>
+                            } <br>
+                        } <br>
+                        if(j > began) { <br>
+                            quicksort(values, began, j+1); <br>
+                        } <br>
+                        if(i < end) { <br>
+                            quicksort(values, i, end); <br>
+                        } <br>
+                    } <br>
+                    <br>
+                    int main (void) { <br>
+                        int size = 9; <br>
+                        array int arr = [1, 3, 4, 65  ,32,2,43,9,6]; <br>
+                        quicksort(arr, 0, 9); <br>
+                        print("O array ordenado é "); <br>
+                         <br>
+                        int i = 0; <br>
+                        while (i < size) { <br>
+                            print(arr[i]); <br>
+                            print(" "); <br>
+                        } <br>
+                    <br>
+                        return 0; <br>
+                    } <br>
+                    
+                </code>
+            </p>
+        </p>
+
+    </body>
+</html>
